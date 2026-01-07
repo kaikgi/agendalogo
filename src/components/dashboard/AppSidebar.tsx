@@ -5,9 +5,10 @@ import {
   Users,
   Scissors,
   Settings,
-  Menu,
   LogOut,
   ExternalLink,
+  Clock,
+  CalendarOff,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
@@ -22,13 +23,10 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-import { Clock } from 'lucide-react';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -36,6 +34,7 @@ const navItems = [
   { title: 'Profissionais', url: '/dashboard/profissionais', icon: Users },
   { title: 'Serviços', url: '/dashboard/servicos', icon: Scissors },
   { title: 'Horários', url: '/dashboard/horarios', icon: Clock },
+  { title: 'Bloqueios', url: '/dashboard/bloqueios', icon: CalendarOff },
   { title: 'Configurações', url: '/dashboard/configuracoes', icon: Settings },
 ];
 
