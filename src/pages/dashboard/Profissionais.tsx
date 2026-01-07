@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, User, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useToast } from '@/hooks/use-toast';
 import { ProfessionalHoursDialog } from '@/components/dashboard/ProfessionalHoursDialog';
+import { ProfessionalServicesDialog } from '@/components/dashboard/ProfessionalServicesDialog';
 
 interface ProfessionalForm {
   name: string;
@@ -42,6 +43,7 @@ export default function Profissionais() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [servicesDialogOpen, setServicesDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string } | null>(null);
@@ -172,6 +174,17 @@ export default function Profissionais() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Serviços"
+                      onClick={() => {
+                        setSelectedProfessional({ id: prof.id, name: prof.name });
+                        setServicesDialogOpen(true);
+                      }}
+                    >
+                      <Scissors className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       title="Horários"
                       onClick={() => {
                         setSelectedProfessional({ id: prof.id, name: prof.name });
@@ -276,6 +289,17 @@ export default function Profissionais() {
           onOpenChange={setHoursDialogOpen}
           professionalId={selectedProfessional.id}
           professionalName={selectedProfessional.name}
+        />
+      )}
+
+      {/* Professional Services Dialog */}
+      {selectedProfessional && establishment && (
+        <ProfessionalServicesDialog
+          open={servicesDialogOpen}
+          onOpenChange={setServicesDialogOpen}
+          professionalId={selectedProfessional.id}
+          professionalName={selectedProfessional.name}
+          establishmentId={establishment.id}
         />
       )}
     </div>
