@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -23,7 +24,9 @@ export function useAppointments(establishmentId: string | undefined, filters?: {
   startDate?: Date;
   endDate?: Date;
 }) {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ['appointments', establishmentId, filters],
     queryFn: async () => {
       let query = supabase
@@ -61,7 +64,39 @@ export function useAppointments(establishmentId: string | undefined, filters?: {
       return data as AppointmentWithRelations[];
     },
     enabled: !!establishmentId,
+    staleTime: 30000,
   });
+
+  // Set up realtime subscription
+  useEffect(() => {
+    if (!establishmentId) return;
+
+    const channel = supabase
+      .channel('appointments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        (payload) => {
+          console.log('Appointment change detected:', payload);
+          
+          // Invalidate queries to refetch data
+          queryClient.invalidateQueries({ queryKey: ['appointments', establishmentId] });
+          queryClient.invalidateQueries({ queryKey: ['metrics'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [establishmentId, queryClient]);
+
+  return query;
 }
 
 export function useUpdateAppointmentStatus() {
