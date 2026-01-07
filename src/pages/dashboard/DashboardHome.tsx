@@ -1,0 +1,160 @@
+import { Calendar, Users, XCircle, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useUserEstablishment } from '@/hooks/useUserEstablishment';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function DashboardHome() {
+  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
+  const { today, week, canceled, byProfessional, topServices, isLoading } = useDashboardMetrics(establishment?.id);
+
+  if (estLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Visão geral do seu estabelecimento
+        </p>
+      </div>
+
+      {/* Metrics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hoje</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : today}
+            </div>
+            <p className="text-xs text-muted-foreground">agendamentos</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Esta Semana</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : week}
+            </div>
+            <p className="text-xs text-muted-foreground">agendamentos</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cancelados (7d)</CardTitle>
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : canceled}
+            </div>
+            <p className="text-xs text-muted-foreground">nos últimos 7 dias</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Profissionais</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : byProfessional.length}
+            </div>
+            <p className="text-xs text-muted-foreground">ativos</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Top Services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Serviços Mais Agendados</CardTitle>
+            <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10" />
+                ))}
+              </div>
+            ) : topServices.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Nenhum agendamento registrado ainda
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {topServices.map((service, idx) => (
+                  <div key={service.service_id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-muted-foreground w-5">
+                        {idx + 1}.
+                      </span>
+                      <span className="text-sm font-medium">{service.service_name}</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {service.total_30d} agendamentos
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* By Professional */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Por Profissional</CardTitle>
+            <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10" />
+                ))}
+              </div>
+            ) : byProfessional.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Nenhum profissional cadastrado ainda
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {byProfessional.map((prof) => (
+                  <div key={prof.professional_id} className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{prof.professional_name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {prof.total_30d} agendamentos
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
