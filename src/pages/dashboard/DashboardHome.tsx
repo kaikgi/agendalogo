@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
 export default function DashboardHome() {
   const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { today, week, canceled, byProfessional, topServices, totalCustomers, recurringCustomers, isLoading } = useDashboardMetrics(establishment?.id);
+  const { today, week, canceled, byProfessional, topServices, totalCustomers, recurringCustomers, appointmentsByDay, isLoading } = useDashboardMetrics(establishment?.id);
 
   if (estLoading) {
     return (
@@ -20,6 +22,13 @@ export default function DashboardHome() {
       </div>
     );
   }
+
+  const chartConfig = {
+    count: {
+      label: 'Agendamentos',
+      color: 'hsl(var(--primary))',
+    },
+  };
 
   return (
     <div className="space-y-6">
@@ -110,6 +119,47 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Appointments Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Agendamentos por Dia</CardTitle>
+          <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-[250px] w-full" />
+          ) : appointmentsByDay.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Nenhum dado disponível
+            </p>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <BarChart data={appointmentsByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={false} 
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={false} 
+                  axisLine={false}
+                  allowDecimals={false}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar 
+                  dataKey="count" 
+                  fill="var(--color-count)" 
+                  radius={[4, 4, 0, 0]} 
+                />
+              </BarChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Top Services */}
