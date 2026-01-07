@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, parseISO, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, User, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, Ban, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useAppointments } from '@/hooks/useAppointments';
+import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useTimeBlocks, useRecurringTimeBlocks } from '@/hooks/useTimeBlocks';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +41,11 @@ const statusLabels: Record<string, string> = {
 
 export default function Agenda() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [showBlocks, setShowBlocks] = useState(true);
+  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+  
   const { data: establishment } = useUserEstablishment();
+  const { professionals } = useManageProfessionals(establishment?.id);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
@@ -52,21 +60,41 @@ export default function Agenda() {
   const { blocks: recurringBlocks } = useRecurringTimeBlocks(establishment?.id);
 
   const getAppointmentsForDay = (date: Date) => {
-    return appointments?.filter((apt) => isSameDay(parseISO(apt.start_at), date)) || [];
+    let filtered = appointments?.filter((apt) => isSameDay(parseISO(apt.start_at), date)) || [];
+    
+    if (selectedProfessional !== 'all') {
+      filtered = filtered.filter((apt) => apt.professional?.id === selectedProfessional);
+    }
+    
+    return filtered;
   };
 
   const getBlocksForDay = (date: Date) => {
+    if (!showBlocks) {
+      return { punctualBlocks: [], recurringBlocks: [] };
+    }
+
     const dayOfWeek = getDay(date);
     
     // Get punctual blocks for this specific date
-    const punctualBlocks = timeBlocks.filter((block) => 
+    let punctualBlocks = timeBlocks.filter((block) => 
       isSameDay(parseISO(block.start_at), date)
     );
     
     // Get recurring blocks for this weekday
-    const recurring = recurringBlocks.filter((block) => 
+    let recurring = recurringBlocks.filter((block) => 
       block.weekday === dayOfWeek && block.active
     );
+
+    // Filter by professional if selected
+    if (selectedProfessional !== 'all') {
+      punctualBlocks = punctualBlocks.filter((block) => 
+        block.professional_id === selectedProfessional || block.professional_id === null
+      );
+      recurring = recurring.filter((block) => 
+        block.professional_id === selectedProfessional || block.professional_id === null
+      );
+    }
 
     return { punctualBlocks, recurringBlocks: recurring };
   };
@@ -104,6 +132,42 @@ export default function Agenda() {
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filtros:</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Label htmlFor="professional-filter" className="text-sm">Profissional:</Label>
+              <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+                <SelectTrigger id="professional-filter" className="w-[180px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {professionals.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-blocks"
+                checked={showBlocks}
+                onCheckedChange={setShowBlocks}
+              />
+              <Label htmlFor="show-blocks" className="text-sm">Mostrar bloqueios</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="text-center text-lg font-medium">
         {format(weekStart, "d 'de' MMMM", { locale: ptBR })} - {format(weekEnd, "d 'de' MMMM, yyyy", { locale: ptBR })}
@@ -241,18 +305,22 @@ export default function Agenda() {
                 {label}
               </Badge>
             ))}
-            <Badge
-              variant="outline"
-              className="text-xs bg-amber-50 text-amber-800 border-amber-200"
-            >
-              Bloqueio Recorrente
-            </Badge>
-            <Badge
-              variant="outline"
-              className="text-xs bg-orange-50 text-orange-800 border-orange-200"
-            >
-              Bloqueio Pontual
-            </Badge>
+            {showBlocks && (
+              <>
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-amber-50 text-amber-800 border-amber-200"
+                >
+                  Bloqueio Recorrente
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-orange-50 text-orange-800 border-orange-200"
+                >
+                  Bloqueio Pontual
+                </Badge>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
