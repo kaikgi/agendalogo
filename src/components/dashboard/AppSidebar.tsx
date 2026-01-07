@@ -28,11 +28,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+import { Clock } from 'lucide-react';
+
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Agenda', url: '/dashboard/agenda', icon: Calendar },
   { title: 'Profissionais', url: '/dashboard/profissionais', icon: Users },
   { title: 'Serviços', url: '/dashboard/servicos', icon: Scissors },
+  { title: 'Horários', url: '/dashboard/horarios', icon: Clock },
   { title: 'Configurações', url: '/dashboard/configuracoes', icon: Settings },
 ];
 

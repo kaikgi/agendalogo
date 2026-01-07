@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, User } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useToast } from '@/hooks/use-toast';
+import { ProfessionalHoursDialog } from '@/components/dashboard/ProfessionalHoursDialog';
 
 interface ProfessionalForm {
   name: string;
@@ -40,8 +41,10 @@ export default function Profissionais() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1 });
 
   const handleOpenCreate = () => {
@@ -165,10 +168,22 @@ export default function Profissionais() {
                     />
                     <span className="text-sm text-muted-foreground">Ativo</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Horários"
+                      onClick={() => {
+                        setSelectedProfessional({ id: prof.id, name: prof.name });
+                        setHoursDialogOpen(true);
+                      }}
+                    >
+                      <Clock className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Editar"
                       onClick={() => handleOpenEdit(prof)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -176,6 +191,7 @@ export default function Profissionais() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Remover"
                       onClick={() => {
                         setDeletingId(prof.id);
                         setDeleteDialogOpen(true);
@@ -252,6 +268,16 @@ export default function Profissionais() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Professional Hours Dialog */}
+      {selectedProfessional && (
+        <ProfessionalHoursDialog
+          open={hoursDialogOpen}
+          onOpenChange={setHoursDialogOpen}
+          professionalId={selectedProfessional.id}
+          professionalName={selectedProfessional.name}
+        />
+      )}
     </div>
   );
 }
