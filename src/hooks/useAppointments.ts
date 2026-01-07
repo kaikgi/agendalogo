@@ -81,3 +81,20 @@ export function useUpdateAppointmentStatus() {
     },
   });
 }
+
+export function useUpdateAppointmentNotes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, internal_notes }: { id: string; internal_notes: string | null }) => {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ internal_notes })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+}
