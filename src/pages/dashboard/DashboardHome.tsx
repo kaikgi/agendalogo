@@ -1,4 +1,4 @@
-import { Calendar, Users, XCircle, TrendingUp } from 'lucide-react';
+import { Calendar, Users, XCircle, TrendingUp, UserCheck, UsersRound } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
@@ -6,14 +6,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardHome() {
   const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { today, week, canceled, byProfessional, topServices, isLoading } = useDashboardMetrics(establishment?.id);
+  const { today, week, canceled, byProfessional, topServices, totalCustomers, recurringCustomers, isLoading } = useDashboardMetrics(establishment?.id);
 
   if (estLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -31,7 +31,7 @@ export default function DashboardHome() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Hoje</CardTitle>
@@ -68,6 +68,32 @@ export default function DashboardHome() {
               {isLoading ? <Skeleton className="h-8 w-12" /> : canceled}
             </div>
             <p className="text-xs text-muted-foreground">nos últimos 7 dias</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
+            <UsersRound className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : totalCustomers}
+            </div>
+            <p className="text-xs text-muted-foreground">cadastrados</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Clientes Recorrentes</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-12" /> : recurringCustomers}
+            </div>
+            <p className="text-xs text-muted-foreground">com 2+ agendamentos</p>
           </CardContent>
         </Card>
 

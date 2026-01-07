@@ -67,12 +67,47 @@ export function useDashboardMetrics(establishmentId: string | undefined) {
     enabled: !!establishmentId,
   });
 
+  const totalCustomersQuery = useQuery({
+    queryKey: ['metrics-total-customers', establishmentId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+        .eq('establishment_id', establishmentId!);
+      return count ?? 0;
+    },
+    enabled: !!establishmentId,
+  });
+
+  const recurringCustomersQuery = useQuery({
+    queryKey: ['metrics-recurring-customers', establishmentId],
+    queryFn: async () => {
+      // Customers with more than 1 appointment
+      const { data } = await supabase
+        .from('appointments')
+        .select('customer_id')
+        .eq('establishment_id', establishmentId!);
+      
+      if (!data) return 0;
+      
+      const countByCustomer = data.reduce((acc, apt) => {
+        acc[apt.customer_id] = (acc[apt.customer_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      return Object.values(countByCustomer).filter(count => count > 1).length;
+    },
+    enabled: !!establishmentId,
+  });
+
   return {
     today: todayQuery.data ?? 0,
     week: weekQuery.data ?? 0,
     canceled: canceledQuery.data ?? 0,
     byProfessional: byProfessionalQuery.data ?? [],
     topServices: topServicesQuery.data ?? [],
-    isLoading: todayQuery.isLoading || weekQuery.isLoading || canceledQuery.isLoading,
+    totalCustomers: totalCustomersQuery.data ?? 0,
+    recurringCustomers: recurringCustomersQuery.data ?? 0,
+    isLoading: todayQuery.isLoading || weekQuery.isLoading || canceledQuery.isLoading || totalCustomersQuery.isLoading,
   };
 }
