@@ -13,7 +13,24 @@ import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useTimeBlocks, useRecurringTimeBlocks } from '@/hooks/useTimeBlocks';
+import { AppointmentDetailsDialog } from '@/components/dashboard/AppointmentDetailsDialog';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type AppointmentStatus = Database['public']['Enums']['appointment_status'];
+
+interface Appointment {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: AppointmentStatus;
+  customer_notes: string | null;
+  internal_notes: string | null;
+  created_at: string;
+  customer: { id: string; name: string; phone: string; email: string | null } | null;
+  professional: { id: string; name: string } | null;
+  service: { id: string; name: string; duration_minutes: number } | null;
+}
 
 const statusColors: Record<string, string> = {
   booked: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -43,6 +60,8 @@ export default function Agenda() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showBlocks, setShowBlocks] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   
   const { data: establishment } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
@@ -261,8 +280,12 @@ export default function Agenda() {
                     dayAppointments.slice(0, 5).map((apt) => (
                       <div
                         key={apt.id}
+                        onClick={() => {
+                          setSelectedAppointment(apt);
+                          setDetailsOpen(true);
+                        }}
                         className={cn(
-                          "p-2 rounded-md border text-xs",
+                          "p-2 rounded-md border text-xs cursor-pointer hover:opacity-80 transition-opacity",
                           statusColors[apt.status]
                         )}
                       >
@@ -324,6 +347,13 @@ export default function Agenda() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Appointment Details Dialog */}
+      <AppointmentDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        appointment={selectedAppointment}
+      />
     </div>
   );
 }
