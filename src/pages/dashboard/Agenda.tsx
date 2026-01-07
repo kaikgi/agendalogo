@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, parseISO, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, User, Ban, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, Ban, Filter, CalendarDays, List, Scissors } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
@@ -56,12 +58,15 @@ const statusLabels: Record<string, string> = {
   canceled_by_establishment: 'Cancelado',
 };
 
+type ViewMode = 'week' | 'list';
+
 export default function Agenda() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showBlocks, setShowBlocks] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
   
   const { data: establishment } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
@@ -77,6 +82,14 @@ export default function Agenda() {
 
   const { blocks: timeBlocks } = useTimeBlocks(establishment?.id);
   const { blocks: recurringBlocks } = useRecurringTimeBlocks(establishment?.id);
+
+  const getFilteredAppointments = () => {
+    let filtered = appointments || [];
+    if (selectedProfessional !== 'all') {
+      filtered = filtered.filter((apt) => apt.professional?.id === selectedProfessional);
+    }
+    return filtered.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+  };
 
   const getAppointmentsForDay = (date: Date) => {
     let filtered = appointments?.filter((apt) => isSameDay(parseISO(apt.start_at), date)) || [];
@@ -95,17 +108,14 @@ export default function Agenda() {
 
     const dayOfWeek = getDay(date);
     
-    // Get punctual blocks for this specific date
     let punctualBlocks = timeBlocks.filter((block) => 
       isSameDay(parseISO(block.start_at), date)
     );
     
-    // Get recurring blocks for this weekday
     let recurring = recurringBlocks.filter((block) => 
       block.weekday === dayOfWeek && block.active
     );
 
-    // Filter by professional if selected
     if (selectedProfessional !== 'all') {
       punctualBlocks = punctualBlocks.filter((block) => 
         block.professional_id === selectedProfessional || block.professional_id === null
@@ -118,6 +128,11 @@ export default function Agenda() {
     return { punctualBlocks, recurringBlocks: recurring };
   };
 
+  const handleAppointmentClick = (apt: Appointment) => {
+    setSelectedAppointment(apt);
+    setDetailsOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -128,27 +143,38 @@ export default function Agenda() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentWeek(new Date())}
-          >
-            Hoje
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-4">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as ViewMode)}>
+            <ToggleGroupItem value="week" aria-label="Visualização semanal">
+              <CalendarDays className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="Visualização em lista">
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentWeek(new Date())}
+            >
+              Hoje
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -176,14 +202,16 @@ export default function Agenda() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                id="show-blocks"
-                checked={showBlocks}
-                onCheckedChange={setShowBlocks}
-              />
-              <Label htmlFor="show-blocks" className="text-sm">Mostrar bloqueios</Label>
-            </div>
+            {viewMode === 'week' && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="show-blocks"
+                  checked={showBlocks}
+                  onCheckedChange={setShowBlocks}
+                />
+                <Label htmlFor="show-blocks" className="text-sm">Mostrar bloqueios</Label>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -193,12 +221,17 @@ export default function Agenda() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-7">
-          {days.map((day) => (
-            <Skeleton key={day.toISOString()} className="h-64" />
-          ))}
-        </div>
-      ) : (
+        viewMode === 'week' ? (
+          <div className="grid gap-4 md:grid-cols-7">
+            {days.map((day) => (
+              <Skeleton key={day.toISOString()} className="h-64" />
+            ))}
+          </div>
+        ) : (
+          <Skeleton className="h-96" />
+        )
+      ) : viewMode === 'week' ? (
+        /* Week View */
         <div className="grid gap-4 md:grid-cols-7">
           {days.map((day) => {
             const dayAppointments = getAppointmentsForDay(day);
@@ -230,7 +263,6 @@ export default function Agenda() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 px-2">
-                  {/* Display blocks */}
                   {dayRecurring.map((block) => (
                     <div
                       key={`rec-${block.id}`}
@@ -271,7 +303,6 @@ export default function Agenda() {
                     </div>
                   ))}
 
-                  {/* Display appointments */}
                   {dayAppointments.length === 0 && !hasBlocks ? (
                     <p className="text-xs text-muted-foreground text-center py-2">
                       Sem agendamentos
@@ -280,10 +311,7 @@ export default function Agenda() {
                     dayAppointments.slice(0, 5).map((apt) => (
                       <div
                         key={apt.id}
-                        onClick={() => {
-                          setSelectedAppointment(apt);
-                          setDetailsOpen(true);
-                        }}
+                        onClick={() => handleAppointmentClick(apt)}
                         className={cn(
                           "p-2 rounded-md border text-xs cursor-pointer hover:opacity-80 transition-opacity",
                           statusColors[apt.status]
@@ -313,40 +341,108 @@ export default function Agenda() {
             );
           })}
         </div>
+      ) : (
+        /* List View */
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Serviço</TableHead>
+                  <TableHead>Profissional</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getFilteredAppointments().length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      Nenhum agendamento neste período
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  getFilteredAppointments().map((apt) => (
+                    <TableRow 
+                      key={apt.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleAppointmentClick(apt)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">
+                              {format(parseISO(apt.start_at), "dd/MM", { locale: ptBR })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(parseISO(apt.start_at), 'HH:mm')} - {format(parseISO(apt.end_at), 'HH:mm')}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span>{apt.customer?.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Scissors className="h-4 w-4 text-muted-foreground" />
+                          <span>{apt.service?.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{apt.professional?.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("text-xs", statusColors[apt.status])}>
+                          {statusLabels[apt.status]}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Legend */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(statusLabels).map(([key, label]) => (
-              <Badge
-                key={key}
-                variant="outline"
-                className={cn("text-xs", statusColors[key])}
-              >
-                {label}
-              </Badge>
-            ))}
-            {showBlocks && (
-              <>
+      {/* Legend - only show in week view */}
+      {viewMode === 'week' && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(statusLabels).map(([key, label]) => (
                 <Badge
+                  key={key}
                   variant="outline"
-                  className="text-xs bg-amber-50 text-amber-800 border-amber-200"
+                  className={cn("text-xs", statusColors[key])}
                 >
-                  Bloqueio Recorrente
+                  {label}
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-xs bg-orange-50 text-orange-800 border-orange-200"
-                >
-                  Bloqueio Pontual
-                </Badge>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+              {showBlocks && (
+                <>
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-amber-50 text-amber-800 border-amber-200"
+                  >
+                    Bloqueio Recorrente
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-orange-50 text-orange-800 border-orange-200"
+                  >
+                    Bloqueio Pontual
+                  </Badge>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Appointment Details Dialog */}
       <AppointmentDetailsDialog
