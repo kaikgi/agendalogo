@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  UserCircle,
   Scissors,
   Settings,
   LogOut,
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Agenda', url: '/dashboard/agenda', icon: Calendar },
+  { title: 'Clientes', url: '/dashboard/clientes', icon: UserCircle },
   { title: 'Profissionais', url: '/dashboard/profissionais', icon: Users },
   { title: 'Serviços', url: '/dashboard/servicos', icon: Scissors },
   { title: 'Horários', url: '/dashboard/horarios', icon: Clock },

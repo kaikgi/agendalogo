@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import Agenda from "./pages/dashboard/Agenda";
+import Clientes from "./pages/dashboard/Clientes";
 import Profissionais from "./pages/dashboard/Profissionais";
 import Servicos from "./pages/dashboard/Servicos";
 import Horarios from "./pages/dashboard/Horarios";
@@ -47,6 +48,7 @@ const App = () => (
             >
               <Route index element={<DashboardHome />} />
               <Route path="agenda" element={<Agenda />} />
+              <Route path="clientes" element={<Clientes />} />
               <Route path="profissionais" element={<Profissionais />} />
               <Route path="servicos" element={<Servicos />} />
               <Route path="horarios" element={<Horarios />} />
