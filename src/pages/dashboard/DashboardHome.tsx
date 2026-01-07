@@ -1,14 +1,20 @@
-import { Calendar, Users, XCircle, TrendingUp, UserCheck, UsersRound } from 'lucide-react';
+import { Calendar, Users, XCircle, TrendingUp, UserCheck, UsersRound, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis } from 'recharts';
 
 export default function DashboardHome() {
-  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { today, week, canceled, byProfessional, topServices, totalCustomers, recurringCustomers, appointmentsByDay, isLoading } = useDashboardMetrics(establishment?.id);
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
+  const { today, week, canceled, byProfessional, topServices, totalCustomers, recurringCustomers, appointmentsByDay, isLoading, error, refetch } = useDashboardMetrics(establishment?.id);
+
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
 
   if (estLoading) {
     return (
@@ -19,6 +25,18 @@ export default function DashboardHome() {
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar dashboard</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }

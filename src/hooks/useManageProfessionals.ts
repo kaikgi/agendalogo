@@ -73,6 +73,8 @@ export function useManageProfessionals(establishmentId: string | undefined) {
   return {
     professionals: listQuery.data ?? [],
     isLoading: listQuery.isLoading,
+    error: listQuery.error,
+    refetch: listQuery.refetch,
     create: createMutation.mutateAsync,
     update: updateMutation.mutateAsync,
     delete: deleteMutation.mutateAsync,

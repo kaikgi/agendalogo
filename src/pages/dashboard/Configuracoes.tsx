@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Save, Copy, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, Copy, Check, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function Configuracoes() {
-  const { data: establishment, isLoading } = useUserEstablishment();
+  const { data: establishment, isLoading, error, refetch } = useUserEstablishment();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -31,7 +31,7 @@ export default function Configuracoes() {
   });
 
   // Initialize form when establishment loads
-  useState(() => {
+  useEffect(() => {
     if (establishment) {
       setForm({
         name: establishment.name || '',
@@ -45,7 +45,7 @@ export default function Configuracoes() {
         slot_interval_minutes: establishment.slot_interval_minutes,
       });
     }
-  });
+  }, [establishment]);
 
   const handleSave = async () => {
     if (!establishment) return;
@@ -89,9 +89,23 @@ export default function Configuracoes() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-2xl">
         <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32" />
         <Skeleton className="h-64" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar configurações</p>
+        <Button variant="outline" onClick={() => refetch()}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }

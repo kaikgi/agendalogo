@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, User, Clock, Scissors } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +36,8 @@ interface ProfessionalForm {
 }
 
 export default function Profissionais() {
-  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { professionals, isLoading, create, update, delete: deleteProfessional, isCreating, isUpdating } = useManageProfessionals(establishment?.id);
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
+  const { professionals, isLoading, error, refetch, create, update, delete: deleteProfessional, isCreating, isUpdating } = useManageProfessionals(establishment?.id);
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,6 +48,11 @@ export default function Profissionais() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1 });
+
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -112,6 +117,18 @@ export default function Profissionais() {
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar profissionais</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }

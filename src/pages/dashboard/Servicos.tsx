@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Scissors } from 'lucide-react';
+import { Plus, Pencil, Trash2, Scissors, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,8 +37,8 @@ interface ServiceForm {
 }
 
 export default function Servicos() {
-  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { services, isLoading, create, update, delete: deleteService, isCreating, isUpdating } = useManageServices(establishment?.id);
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
+  const { services, isLoading, error, refetch, create, update, delete: deleteService, isCreating, isUpdating } = useManageServices(establishment?.id);
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,6 +51,11 @@ export default function Servicos() {
     duration_minutes: 30,
     price_cents: 0,
   });
+
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -142,6 +147,18 @@ export default function Servicos() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar serviços</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }
