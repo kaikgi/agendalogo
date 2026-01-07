@@ -1,13 +1,15 @@
+import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, User, Scissors, Phone, Mail, FileText } from 'lucide-react';
+import { Clock, User, Scissors, Phone, Mail, FileText, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useUpdateAppointmentStatus } from '@/hooks/useAppointments';
+import { Textarea } from '@/components/ui/textarea';
+import { useUpdateAppointmentStatus, useUpdateAppointmentNotes } from '@/hooks/useAppointments';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -52,8 +54,19 @@ const statusLabels: Record<AppointmentStatus, string> = {
 const statusOptions: AppointmentStatus[] = ['booked', 'confirmed', 'completed', 'no_show', 'canceled'];
 
 export function AppointmentDetailsDialog({ open, onOpenChange, appointment }: AppointmentDetailsDialogProps) {
-  const { mutateAsync: updateStatus, isPending } = useUpdateAppointmentStatus();
+  const { mutateAsync: updateStatus, isPending: isUpdatingStatus } = useUpdateAppointmentStatus();
+  const { mutateAsync: updateNotes, isPending: isUpdatingNotes } = useUpdateAppointmentNotes();
   const { toast } = useToast();
+  
+  const [internalNotes, setInternalNotes] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (appointment) {
+      setInternalNotes(appointment.internal_notes || '');
+      setHasChanges(false);
+    }
+  }, [appointment]);
 
   if (!appointment) return null;
 
@@ -66,9 +79,29 @@ export function AppointmentDetailsDialog({ open, onOpenChange, appointment }: Ap
     }
   };
 
+  const handleNotesChange = (value: string) => {
+    setInternalNotes(value);
+    setHasChanges(value !== (appointment.internal_notes || ''));
+  };
+
+  const handleSaveNotes = async () => {
+    try {
+      await updateNotes({ 
+        id: appointment.id, 
+        internal_notes: internalNotes.trim() || null 
+      });
+      setHasChanges(false);
+      toast({ title: 'Notas salvas com sucesso!' });
+    } catch {
+      toast({ title: 'Erro ao salvar notas', variant: 'destructive' });
+    }
+  };
+
+  const isPending = isUpdatingStatus || isUpdatingNotes;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes do Agendamento</DialogTitle>
           <DialogDescription>
@@ -152,32 +185,45 @@ export function AppointmentDetailsDialog({ open, onOpenChange, appointment }: Ap
             </div>
           </div>
 
-          {/* Notes */}
-          {(appointment.customer_notes || appointment.internal_notes) && (
+          {/* Customer Notes (read-only) */}
+          {appointment.customer_notes && (
             <>
               <Separator />
-              <div className="space-y-2">
-                {appointment.customer_notes && (
-                  <div className="flex items-start gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Observações do cliente</p>
-                      <p className="text-sm text-muted-foreground">{appointment.customer_notes}</p>
-                    </div>
-                  </div>
-                )}
-                {appointment.internal_notes && (
-                  <div className="flex items-start gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Notas internas</p>
-                      <p className="text-sm text-muted-foreground">{appointment.internal_notes}</p>
-                    </div>
-                  </div>
-                )}
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Observações do cliente</p>
+                  <p className="text-sm text-muted-foreground">{appointment.customer_notes}</p>
+                </div>
               </div>
             </>
           )}
+
+          <Separator />
+
+          {/* Internal Notes (editable) */}
+          <div className="space-y-2">
+            <Label htmlFor="internal-notes">Notas internas</Label>
+            <Textarea
+              id="internal-notes"
+              placeholder="Adicione anotações sobre este agendamento..."
+              value={internalNotes}
+              onChange={(e) => handleNotesChange(e.target.value)}
+              className="min-h-[80px] resize-none"
+              maxLength={500}
+            />
+            {hasChanges && (
+              <Button 
+                size="sm" 
+                onClick={handleSaveNotes}
+                disabled={isUpdatingNotes}
+                className="w-full"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isUpdatingNotes ? 'Salvando...' : 'Salvar notas'}
+              </Button>
+            )}
+          </div>
 
           <Separator />
 
