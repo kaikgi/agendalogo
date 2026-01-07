@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, CalendarOff, Repeat } from 'lucide-react';
+import { Plus, Trash2, CalendarOff, Repeat, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useTimeBlocks, useRecurringTimeBlocks } from '@/hooks/useTimeBlocks';
@@ -18,22 +18,48 @@ import { useToast } from '@/hooks/use-toast';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+interface TimeBlockWithProfessional {
+  id: string;
+  establishment_id: string;
+  professional_id: string | null;
+  start_at: string;
+  end_at: string;
+  reason: string | null;
+  created_at: string;
+  professionals: { name: string } | null;
+}
+
+interface RecurringBlockWithProfessional {
+  id: string;
+  establishment_id: string;
+  professional_id: string | null;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  reason: string | null;
+  active: boolean;
+  created_at: string;
+  professionals: { name: string } | null;
+}
+
 export default function Bloqueios() {
   const { data: establishment, isLoading: estLoading } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
-  const { blocks, isLoading, create, isCreating, remove } = useTimeBlocks(establishment?.id);
+  const { blocks, isLoading, create, isCreating, update, isUpdating, remove } = useTimeBlocks(establishment?.id);
   const { 
     blocks: recurringBlocks, 
     isLoading: recLoading, 
     create: createRecurring, 
     isCreating: isCreatingRecurring,
     update: updateRecurring,
+    isUpdating: isUpdatingRecurring,
     remove: removeRecurring 
   } = useRecurringTimeBlocks(establishment?.id);
   const { toast } = useToast();
 
   // Pontual form state
   const [pontualOpen, setPontualOpen] = useState(false);
+  const [editingPontual, setEditingPontual] = useState<TimeBlockWithProfessional | null>(null);
   const [pontualProfessionalId, setPontualProfessionalId] = useState<string>('all');
   const [pontualDate, setPontualDate] = useState('');
   const [pontualStartTime, setPontualStartTime] = useState('');
@@ -42,42 +68,82 @@ export default function Bloqueios() {
 
   // Recorrente form state
   const [recorrenteOpen, setRecorrenteOpen] = useState(false);
+  const [editingRecorrente, setEditingRecorrente] = useState<RecurringBlockWithProfessional | null>(null);
   const [recorrenteProfessionalId, setRecorrenteProfessionalId] = useState<string>('all');
   const [recorrenteWeekday, setRecorrenteWeekday] = useState<string>('1');
   const [recorrenteStartTime, setRecorrenteStartTime] = useState('');
   const [recorrenteEndTime, setRecorrenteEndTime] = useState('');
   const [recorrenteReason, setRecorrenteReason] = useState('');
 
-  const handleCreatePontual = async () => {
+  const openNewPontual = () => {
+    setEditingPontual(null);
+    resetPontualForm();
+    setPontualOpen(true);
+  };
+
+  const openEditPontual = (block: TimeBlockWithProfessional) => {
+    setEditingPontual(block);
+    setPontualProfessionalId(block.professional_id || 'all');
+    setPontualDate(format(new Date(block.start_at), 'yyyy-MM-dd'));
+    setPontualStartTime(format(new Date(block.start_at), 'HH:mm'));
+    setPontualEndTime(format(new Date(block.end_at), 'HH:mm'));
+    setPontualReason(block.reason || '');
+    setPontualOpen(true);
+  };
+
+  const openNewRecorrente = () => {
+    setEditingRecorrente(null);
+    resetRecorrenteForm();
+    setRecorrenteOpen(true);
+  };
+
+  const openEditRecorrente = (block: RecurringBlockWithProfessional) => {
+    setEditingRecorrente(block);
+    setRecorrenteProfessionalId(block.professional_id || 'all');
+    setRecorrenteWeekday(String(block.weekday));
+    setRecorrenteStartTime(block.start_time);
+    setRecorrenteEndTime(block.end_time);
+    setRecorrenteReason(block.reason || '');
+    setRecorrenteOpen(true);
+  };
+
+  const handleSavePontual = async () => {
     if (!establishment?.id || !pontualDate || !pontualStartTime || !pontualEndTime) {
       toast({ title: 'Preencha todos os campos obrigatórios', variant: 'destructive' });
       return;
     }
 
     try {
-      await create({
+      const data = {
         establishment_id: establishment.id,
         professional_id: pontualProfessionalId === 'all' ? null : pontualProfessionalId,
         start_at: `${pontualDate}T${pontualStartTime}:00`,
         end_at: `${pontualDate}T${pontualEndTime}:00`,
         reason: pontualReason || null,
-      });
-      toast({ title: 'Bloqueio criado com sucesso!' });
+      };
+
+      if (editingPontual) {
+        await update({ id: editingPontual.id, ...data });
+        toast({ title: 'Bloqueio atualizado com sucesso!' });
+      } else {
+        await create(data);
+        toast({ title: 'Bloqueio criado com sucesso!' });
+      }
       setPontualOpen(false);
       resetPontualForm();
     } catch {
-      toast({ title: 'Erro ao criar bloqueio', variant: 'destructive' });
+      toast({ title: 'Erro ao salvar bloqueio', variant: 'destructive' });
     }
   };
 
-  const handleCreateRecorrente = async () => {
+  const handleSaveRecorrente = async () => {
     if (!establishment?.id || !recorrenteStartTime || !recorrenteEndTime) {
       toast({ title: 'Preencha todos os campos obrigatórios', variant: 'destructive' });
       return;
     }
 
     try {
-      await createRecurring({
+      const data = {
         establishment_id: establishment.id,
         professional_id: recorrenteProfessionalId === 'all' ? null : recorrenteProfessionalId,
         weekday: parseInt(recorrenteWeekday),
@@ -85,12 +151,19 @@ export default function Bloqueios() {
         end_time: recorrenteEndTime,
         reason: recorrenteReason || null,
         active: true,
-      });
-      toast({ title: 'Bloqueio recorrente criado com sucesso!' });
+      };
+
+      if (editingRecorrente) {
+        await updateRecurring({ id: editingRecorrente.id, ...data });
+        toast({ title: 'Bloqueio recorrente atualizado com sucesso!' });
+      } else {
+        await createRecurring(data);
+        toast({ title: 'Bloqueio recorrente criado com sucesso!' });
+      }
       setRecorrenteOpen(false);
       resetRecorrenteForm();
     } catch {
-      toast({ title: 'Erro ao criar bloqueio recorrente', variant: 'destructive' });
+      toast({ title: 'Erro ao salvar bloqueio recorrente', variant: 'destructive' });
     }
   };
 
@@ -122,6 +195,7 @@ export default function Bloqueios() {
   };
 
   const resetPontualForm = () => {
+    setEditingPontual(null);
     setPontualProfessionalId('all');
     setPontualDate('');
     setPontualStartTime('');
@@ -130,11 +204,22 @@ export default function Bloqueios() {
   };
 
   const resetRecorrenteForm = () => {
+    setEditingRecorrente(null);
     setRecorrenteProfessionalId('all');
     setRecorrenteWeekday('1');
     setRecorrenteStartTime('');
     setRecorrenteEndTime('');
     setRecorrenteReason('');
+  };
+
+  const handlePontualOpenChange = (open: boolean) => {
+    setPontualOpen(open);
+    if (!open) resetPontualForm();
+  };
+
+  const handleRecorrenteOpenChange = (open: boolean) => {
+    setRecorrenteOpen(open);
+    if (!open) resetRecorrenteForm();
   };
 
   if (estLoading || isLoading || recLoading) {
@@ -145,6 +230,9 @@ export default function Bloqueios() {
       </div>
     );
   }
+
+  const isSavingPontual = isCreating || isUpdating;
+  const isSavingRecorrente = isCreatingRecurring || isUpdatingRecurring;
 
   return (
     <div className="space-y-6">
@@ -174,78 +262,10 @@ export default function Bloqueios() {
                 <CardTitle>Bloqueios Pontuais</CardTitle>
                 <CardDescription>Bloqueios para datas e horários específicos</CardDescription>
               </div>
-              <Dialog open={pontualOpen} onOpenChange={setPontualOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Bloqueio
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Novo Bloqueio Pontual</DialogTitle>
-                    <DialogDescription>
-                      Crie um bloqueio para uma data e horário específicos
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Profissional</Label>
-                      <Select value={pontualProfessionalId} onValueChange={setPontualProfessionalId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todo o Estabelecimento</SelectItem>
-                          {professionals.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Data</Label>
-                      <Input 
-                        type="date" 
-                        value={pontualDate} 
-                        onChange={(e) => setPontualDate(e.target.value)} 
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Início</Label>
-                        <Input 
-                          type="time" 
-                          value={pontualStartTime} 
-                          onChange={(e) => setPontualStartTime(e.target.value)} 
-                        />
-                      </div>
-                      <div>
-                        <Label>Fim</Label>
-                        <Input 
-                          type="time" 
-                          value={pontualEndTime} 
-                          onChange={(e) => setPontualEndTime(e.target.value)} 
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Motivo (opcional)</Label>
-                      <Input 
-                        value={pontualReason} 
-                        onChange={(e) => setPontualReason(e.target.value)} 
-                        placeholder="Ex: Feriado, Reunião..." 
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setPontualOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleCreatePontual} disabled={isCreating}>
-                      {isCreating ? 'Criando...' : 'Criar'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={openNewPontual}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Bloqueio
+              </Button>
             </CardHeader>
             <CardContent>
               {blocks.length === 0 ? (
@@ -270,13 +290,22 @@ export default function Bloqueios() {
                           {block.reason && ` • ${block.reason}`}
                         </p>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeletePontual(block.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openEditPontual(block)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeletePontual(block.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -292,83 +321,10 @@ export default function Bloqueios() {
                 <CardTitle>Bloqueios Recorrentes</CardTitle>
                 <CardDescription>Bloqueios que se repetem toda semana</CardDescription>
               </div>
-              <Dialog open={recorrenteOpen} onOpenChange={setRecorrenteOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Bloqueio
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Novo Bloqueio Recorrente</DialogTitle>
-                    <DialogDescription>
-                      Crie um bloqueio que se repete toda semana
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Profissional</Label>
-                      <Select value={recorrenteProfessionalId} onValueChange={setRecorrenteProfessionalId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todo o Estabelecimento</SelectItem>
-                          {professionals.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Dia da Semana</Label>
-                      <Select value={recorrenteWeekday} onValueChange={setRecorrenteWeekday}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WEEKDAYS.map((day, i) => (
-                            <SelectItem key={i} value={String(i)}>{day}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Início</Label>
-                        <Input 
-                          type="time" 
-                          value={recorrenteStartTime} 
-                          onChange={(e) => setRecorrenteStartTime(e.target.value)} 
-                        />
-                      </div>
-                      <div>
-                        <Label>Fim</Label>
-                        <Input 
-                          type="time" 
-                          value={recorrenteEndTime} 
-                          onChange={(e) => setRecorrenteEndTime(e.target.value)} 
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Motivo (opcional)</Label>
-                      <Input 
-                        value={recorrenteReason} 
-                        onChange={(e) => setRecorrenteReason(e.target.value)} 
-                        placeholder="Ex: Almoço, Intervalo..." 
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setRecorrenteOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleCreateRecorrente} disabled={isCreatingRecurring}>
-                      {isCreatingRecurring ? 'Criando...' : 'Criar'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={openNewRecorrente}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Bloqueio
+              </Button>
             </CardHeader>
             <CardContent>
               {recurringBlocks.length === 0 ? (
@@ -399,13 +355,22 @@ export default function Bloqueios() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteRecorrente(block.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openEditRecorrente(block)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteRecorrente(block.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -414,6 +379,155 @@ export default function Bloqueios() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Pontual Dialog */}
+      <Dialog open={pontualOpen} onOpenChange={handlePontualOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingPontual ? 'Editar Bloqueio Pontual' : 'Novo Bloqueio Pontual'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingPontual 
+                ? 'Atualize as informações do bloqueio' 
+                : 'Crie um bloqueio para uma data e horário específicos'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Profissional</Label>
+              <Select value={pontualProfessionalId} onValueChange={setPontualProfessionalId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo o Estabelecimento</SelectItem>
+                  {professionals.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Data</Label>
+              <Input 
+                type="date" 
+                value={pontualDate} 
+                onChange={(e) => setPontualDate(e.target.value)} 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Início</Label>
+                <Input 
+                  type="time" 
+                  value={pontualStartTime} 
+                  onChange={(e) => setPontualStartTime(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label>Fim</Label>
+                <Input 
+                  type="time" 
+                  value={pontualEndTime} 
+                  onChange={(e) => setPontualEndTime(e.target.value)} 
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <Input 
+                value={pontualReason} 
+                onChange={(e) => setPontualReason(e.target.value)} 
+                placeholder="Ex: Feriado, Reunião..." 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPontualOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSavePontual} disabled={isSavingPontual}>
+              {isSavingPontual ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recorrente Dialog */}
+      <Dialog open={recorrenteOpen} onOpenChange={handleRecorrenteOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingRecorrente ? 'Editar Bloqueio Recorrente' : 'Novo Bloqueio Recorrente'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingRecorrente 
+                ? 'Atualize as informações do bloqueio recorrente' 
+                : 'Crie um bloqueio que se repete toda semana'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Profissional</Label>
+              <Select value={recorrenteProfessionalId} onValueChange={setRecorrenteProfessionalId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo o Estabelecimento</SelectItem>
+                  {professionals.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Dia da Semana</Label>
+              <Select value={recorrenteWeekday} onValueChange={setRecorrenteWeekday}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKDAYS.map((day, i) => (
+                    <SelectItem key={i} value={String(i)}>{day}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Início</Label>
+                <Input 
+                  type="time" 
+                  value={recorrenteStartTime} 
+                  onChange={(e) => setRecorrenteStartTime(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label>Fim</Label>
+                <Input 
+                  type="time" 
+                  value={recorrenteEndTime} 
+                  onChange={(e) => setRecorrenteEndTime(e.target.value)} 
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <Input 
+                value={recorrenteReason} 
+                onChange={(e) => setRecorrenteReason(e.target.value)} 
+                placeholder="Ex: Almoço, Intervalo..." 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecorrenteOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveRecorrente} disabled={isSavingRecorrente}>
+              {isSavingRecorrente ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

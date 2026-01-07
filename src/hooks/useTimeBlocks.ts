@@ -50,6 +50,16 @@ export function useTimeBlocks(establishmentId: string | undefined) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: Partial<TimeBlock> & { id: string }) => {
+      const { error } = await supabase.from('time_blocks').update(data).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-blocks', establishmentId] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('time_blocks').delete().eq('id', id);
@@ -65,6 +75,8 @@ export function useTimeBlocks(establishmentId: string | undefined) {
     isLoading: query.isLoading,
     create: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    update: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
     remove: deleteMutation.mutateAsync,
     isRemoving: deleteMutation.isPending,
   };
