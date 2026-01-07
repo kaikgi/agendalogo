@@ -58,9 +58,11 @@ export function useBusinessHours(establishmentId: string | undefined) {
   return {
     hours: query.data ?? [],
     isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
     update: updateMutation.mutateAsync,
     upsert: upsertMutation.mutateAsync,
-    isUpdating: updateMutation.isPending,
+    isUpdating: updateMutation.isPending || upsertMutation.isPending,
     WEEKDAYS,
   };
 }

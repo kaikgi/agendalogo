@@ -64,9 +64,6 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-sm truncate">AgendaI</span>
-              <span className="text-xs text-muted-foreground truncate">
-                {establishment?.name || 'Carregando...'}
-              </span>
             </div>
           )}
         </div>
@@ -126,7 +123,9 @@ export function AppSidebar() {
         <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
+              <p className="text-sm font-medium truncate">
+                {establishment?.name || 'Minha conta'}
+              </p>
             </div>
           )}
           <Button
@@ -134,6 +133,7 @@ export function AppSidebar() {
             size="icon"
             onClick={signOut}
             className="flex-shrink-0"
+            title="Sair"
           >
             <LogOut className="h-4 w-4" />
           </Button>

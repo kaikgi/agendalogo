@@ -75,6 +75,8 @@ export function useManageServices(establishmentId: string | undefined) {
   return {
     services: listQuery.data ?? [],
     isLoading: listQuery.isLoading,
+    error: listQuery.error,
+    refetch: listQuery.refetch,
     create: createMutation.mutateAsync,
     update: updateMutation.mutateAsync,
     delete: deleteMutation.mutateAsync,

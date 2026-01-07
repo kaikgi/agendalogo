@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, CalendarOff, Repeat, Pencil } from 'lucide-react';
+import { Plus, Trash2, CalendarOff, Repeat, Pencil, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,12 +43,14 @@ interface RecurringBlockWithProfessional {
 }
 
 export default function Bloqueios() {
-  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
-  const { blocks, isLoading, create, isCreating, update, isUpdating, remove } = useTimeBlocks(establishment?.id);
+  const { blocks, isLoading, error, refetch, create, isCreating, update, isUpdating, remove } = useTimeBlocks(establishment?.id);
   const { 
     blocks: recurringBlocks, 
-    isLoading: recLoading, 
+    isLoading: recLoading,
+    error: recError,
+    refetch: refetchRec,
     create: createRecurring, 
     isCreating: isCreatingRecurring,
     update: updateRecurring,
@@ -222,11 +224,29 @@ export default function Bloqueios() {
     if (!open) resetRecorrenteForm();
   };
 
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else if (error) refetch();
+    else if (recError) refetchRec();
+  };
+
   if (estLoading || isLoading || recLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-[400px]" />
+      </div>
+    );
+  }
+
+  if (estError || error || recError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar bloqueios</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }

@@ -73,6 +73,8 @@ export function useTimeBlocks(establishmentId: string | undefined) {
   return {
     blocks: query.data ?? [],
     isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
     create: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
     update: updateMutation.mutateAsync,
@@ -132,6 +134,8 @@ export function useRecurringTimeBlocks(establishmentId: string | undefined) {
   return {
     blocks: query.data ?? [],
     isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
     create: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
     update: updateMutation.mutateAsync,

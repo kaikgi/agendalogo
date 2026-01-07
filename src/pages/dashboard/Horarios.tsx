@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Save } from 'lucide-react';
+import { Clock, Save, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +27,8 @@ const DEFAULT_HOURS: HourRow[] = [
 ];
 
 export default function Horarios() {
-  const { data: establishment, isLoading: estLoading } = useUserEstablishment();
-  const { hours, isLoading, upsert, isUpdating, WEEKDAYS } = useBusinessHours(establishment?.id);
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
+  const { hours, isLoading, error, refetch, upsert, isUpdating, WEEKDAYS } = useBusinessHours(establishment?.id);
   const { toast } = useToast();
   
   const [localHours, setLocalHours] = useState<HourRow[]>(DEFAULT_HOURS);
@@ -86,11 +86,28 @@ export default function Horarios() {
     }
   };
 
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
+
   if (estLoading || isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-[400px]" />
+      </div>
+    );
+  }
+
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar horários</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
       </div>
     );
   }
