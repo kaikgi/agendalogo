@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import PublicBooking from "./pages/PublicBooking";
+import ManageAppointment from "./pages/ManageAppointment";
 import NotFound from "./pages/NotFound";
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
             <Route path="/:slug" element={<PublicBooking />} />
+            <Route path="/:slug/gerenciar/:token" element={<ManageAppointment />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
