@@ -18,6 +18,7 @@ import Agenda from "./pages/dashboard/Agenda";
 import Profissionais from "./pages/dashboard/Profissionais";
 import Servicos from "./pages/dashboard/Servicos";
 import Horarios from "./pages/dashboard/Horarios";
+import Bloqueios from "./pages/dashboard/Bloqueios";
 import Configuracoes from "./pages/dashboard/Configuracoes";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="profissionais" element={<Profissionais />} />
               <Route path="servicos" element={<Servicos />} />
               <Route path="horarios" element={<Horarios />} />
+              <Route path="bloqueios" element={<Bloqueios />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
             <Route path="/:slug" element={<PublicBooking />} />
