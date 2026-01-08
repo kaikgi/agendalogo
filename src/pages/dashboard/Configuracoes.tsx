@@ -56,6 +56,9 @@ export default function Configuracoes() {
     description: '',
     phone: '',
     address: '',
+    city: '',
+    state: '',
+    instagram: '',
     booking_enabled: true,
     auto_confirm_bookings: true,
     reschedule_min_hours: 2,
@@ -74,6 +77,9 @@ export default function Configuracoes() {
         description: establishment.description || '',
         phone: establishment.phone || '',
         address: establishment.address || '',
+        city: (establishment as any).city || '',
+        state: (establishment as any).state || '',
+        instagram: (establishment as any).instagram || '',
         booking_enabled: establishment.booking_enabled,
         auto_confirm_bookings: establishment.auto_confirm_bookings,
         reschedule_min_hours: establishment.reschedule_min_hours,
@@ -173,12 +179,15 @@ export default function Configuracoes() {
           description: form.description || null,
           phone: form.phone || null,
           address: form.address || null,
+          city: form.city || null,
+          state: form.state || null,
+          instagram: form.instagram || null,
           booking_enabled: form.booking_enabled,
           auto_confirm_bookings: form.auto_confirm_bookings,
           reschedule_min_hours: form.reschedule_min_hours,
           max_future_days: form.max_future_days,
           slot_interval_minutes: form.slot_interval_minutes,
-        })
+        } as any)
         .eq('id', establishment.id);
 
       if (error) {
@@ -335,7 +344,7 @@ export default function Configuracoes() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">Telefone / WhatsApp</Label>
               <Input
                 id="phone"
                 value={form.phone}
@@ -344,12 +353,42 @@ export default function Configuracoes() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
+              <Label htmlFor="instagram">Instagram</Label>
               <Input
-                id="address"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Endereço completo"
+                id="instagram"
+                value={form.instagram}
+                onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+                placeholder="@seunegocio"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="address">Endereço</Label>
+            <Input
+              id="address"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Rua, número, bairro"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Cidade</Label>
+              <Input
+                id="city"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="São Paulo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">Estado</Label>
+              <Input
+                id="state"
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+                placeholder="SP"
+                maxLength={2}
               />
             </div>
           </div>

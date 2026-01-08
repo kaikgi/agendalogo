@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, parseISO, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, User, Ban, Filter, CalendarDays, List, Scissors } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, Ban, Filter, CalendarDays, List, Scissors, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,20 +68,25 @@ export default function Agenda() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   
-  const { data: establishment } = useUserEstablishment();
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const { data: appointments, isLoading } = useAppointments(establishment?.id, {
+  const { data: appointments, isLoading, error, refetch } = useAppointments(establishment?.id, {
     startDate: weekStart,
     endDate: weekEnd,
   });
 
   const { blocks: timeBlocks } = useTimeBlocks(establishment?.id);
   const { blocks: recurringBlocks } = useRecurringTimeBlocks(establishment?.id);
+
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
 
   const getFilteredAppointments = () => {
     let filtered = appointments || [];
@@ -132,6 +137,33 @@ export default function Agenda() {
     setSelectedAppointment(apt);
     setDetailsOpen(true);
   };
+
+  // Error state
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar agenda</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  // Loading state for establishment
+  if (estLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 md:grid-cols-7">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <Skeleton key={i} className="h-64" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
