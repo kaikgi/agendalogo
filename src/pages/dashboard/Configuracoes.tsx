@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Save, Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Upload, Trash2, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Save, Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Trash2, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,11 +48,8 @@ export default function Configuracoes() {
   const [copied, setCopied] = useState(false);
   
   // Logo upload state
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   
   // Slug state
   const [slug, setSlug] = useState('');
@@ -99,50 +96,15 @@ export default function Configuracoes() {
     }
   }, [establishment]);
 
-  // Handle file selection - opens crop dialog
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !establishment) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Selecione uma imagem válida', variant: 'destructive' });
-      return;
-    }
-
-    // Validate file size (max 5MB for original, will be compressed after crop)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'A imagem deve ter no máximo 5MB', variant: 'destructive' });
-      return;
-    }
-
-    // Read file and open crop dialog
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageToCrop(reader.result as string);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // Handle cropped image upload
-  const handleCroppedImage = async (croppedBlob: Blob) => {
+  // Handle logo upload from ImageUploadButton
+  const handleLogoUpload = async (croppedBlob: Blob) => {
     if (!establishment) return;
 
-    setCropDialogOpen(false);
-    setImageToCrop(null);
     setUploadingLogo(true);
 
     try {
-      // Create file path: establishment_id/logo.jpg
       const filePath = `${establishment.id}/logo.jpg`;
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('establishment-logos')
         .upload(filePath, croppedBlob, { 
@@ -152,14 +114,12 @@ export default function Configuracoes() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL with cache buster
       const { data: { publicUrl } } = supabase.storage
         .from('establishment-logos')
         .getPublicUrl(filePath);
 
       const urlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
 
-      // Update establishment with new logo URL
       const { error: updateError } = await supabase
         .from('establishments')
         .update({ logo_url: urlWithCacheBuster })
@@ -469,28 +429,17 @@ export default function Configuracoes() {
             </Avatar>
             
             <div className="flex-1 space-y-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              
               <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
+                <ImageUploadButton
+                  onImageCropped={handleLogoUpload}
+                  currentImageUrl={logoUrl}
+                  buttonText="Enviar Logo"
+                  changeButtonText="Alterar Logo"
+                  maxFileSizeMB={5}
+                  cropTitle="Recortar Logo"
                   disabled={uploadingLogo}
-                >
-                  {uploadingLogo ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4 mr-2" />
-                  )}
-                  {logoUrl ? 'Alterar Logo' : 'Enviar Logo'}
-                </Button>
+                  isUploading={uploadingLogo}
+                />
                 
                 {logoUrl && (
                   <Button
@@ -507,7 +456,7 @@ export default function Configuracoes() {
               </div>
               
               <p className="text-xs text-muted-foreground">
-                Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 2MB.
+                Formatos aceitos: JPG, PNG, GIF, WebP. Tamanho máximo: 5MB.
               </p>
             </div>
           </div>
@@ -662,21 +611,6 @@ export default function Configuracoes() {
         <Save className="h-4 w-4 mr-2" />
         {saving ? 'Salvando...' : 'Salvar Configurações'}
       </Button>
-
-      {/* Image Crop Dialog */}
-      {imageToCrop && (
-        <ImageCropDialog
-          open={cropDialogOpen}
-          onClose={() => {
-            setCropDialogOpen(false);
-            setImageToCrop(null);
-          }}
-          imageSrc={imageToCrop}
-          onCropComplete={handleCroppedImage}
-          aspectRatio={1}
-          title="Recortar Logo"
-        />
-      )}
     </div>
   );
 }

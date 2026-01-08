@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, Upload, Loader2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useToast } from '@/hooks/use-toast';
@@ -54,10 +54,7 @@ export default function Profissionais() {
   const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1, photo_url: null });
   
   // Photo upload state
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   const handleRetry = () => {
     if (estError) refetchEst();
@@ -76,69 +73,39 @@ export default function Profissionais() {
     setDialogOpen(true);
   };
 
-  // Handle file selection for photo
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Selecione uma imagem válida', variant: 'destructive' });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'A imagem deve ter no máximo 5MB', variant: 'destructive' });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageToCrop(reader.result as string);
-      setCropDialogOpen(true);
-    };
-    reader.readAsDataURL(file);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // Handle cropped photo - upload immediately if editing existing professional
-  const handleCroppedPhoto = async (croppedBlob: Blob) => {
-    setCropDialogOpen(false);
-    setImageToCrop(null);
-
-    if (editingId) {
-      // Upload immediately for existing professional
-      setUploadingPhoto(true);
-      try {
-        const filePath = `${editingId}/photo.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from('professional-photos')
-          .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('professional-photos')
-          .getPublicUrl(filePath);
-
-        const urlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
-
-        await update({ id: editingId, photo_url: urlWithCacheBuster });
-        setForm({ ...form, photo_url: urlWithCacheBuster });
-        toast({ title: 'Foto atualizada!' });
-      } catch (err: any) {
-        toast({ title: 'Erro ao enviar foto', description: err?.message, variant: 'destructive' });
-      } finally {
-        setUploadingPhoto(false);
-      }
-    } else {
-      // For new professional, store blob URL temporarily
+  // Handle photo upload for existing professional
+  const handlePhotoUpload = async (croppedBlob: Blob) => {
+    if (!editingId) {
+      // For new professional, store blob temporarily
       const tempUrl = URL.createObjectURL(croppedBlob);
       setForm({ ...form, photo_url: tempUrl });
-      // Store the blob for later upload
       (window as any).__pendingProfessionalPhotoBlob = croppedBlob;
+      return;
+    }
+
+    // Upload immediately for existing professional
+    setUploadingPhoto(true);
+    try {
+      const filePath = `${editingId}/photo.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('professional-photos')
+        .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('professional-photos')
+        .getPublicUrl(filePath);
+
+      const urlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
+
+      await update({ id: editingId, photo_url: urlWithCacheBuster });
+      setForm({ ...form, photo_url: urlWithCacheBuster });
+      toast({ title: 'Foto atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar foto', description: err?.message, variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -390,28 +357,17 @@ export default function Profissionais() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                  <ImageUploadButton
+                    onImageCropped={handlePhotoUpload}
+                    currentImageUrl={form.photo_url}
+                    buttonText="Adicionar Foto"
+                    changeButtonText="Alterar"
+                    maxFileSizeMB={5}
+                    cropTitle="Recortar Foto"
                     disabled={uploadingPhoto}
-                  >
-                    {uploadingPhoto ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    {form.photo_url ? 'Alterar' : 'Adicionar Foto'}
-                  </Button>
+                    isUploading={uploadingPhoto}
+                  />
                   
                   {editingId && form.photo_url && (
                     <Button
@@ -501,21 +457,6 @@ export default function Profissionais() {
           professionalId={selectedProfessional.id}
           professionalName={selectedProfessional.name}
           establishmentId={establishment.id}
-        />
-      )}
-
-      {/* Image Crop Dialog */}
-      {imageToCrop && (
-        <ImageCropDialog
-          open={cropDialogOpen}
-          onClose={() => {
-            setCropDialogOpen(false);
-            setImageToCrop(null);
-          }}
-          imageSrc={imageToCrop}
-          onCropComplete={handleCroppedPhoto}
-          aspectRatio={1}
-          title="Recortar Foto"
         />
       )}
     </div>
