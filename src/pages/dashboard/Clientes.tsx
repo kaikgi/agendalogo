@@ -68,8 +68,8 @@ export default function Clientes() {
     }).format(cents / 100);
   };
 
-  // Loading state
-  if (estLoading || isLoading) {
+  // Loading state - only show skeleton while establishment is loading
+  if (estLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -111,7 +111,16 @@ export default function Clientes() {
         />
       </div>
 
-      {!filteredCustomers?.length ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="py-10">
+            <div className="flex items-center justify-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span className="text-muted-foreground">Carregando clientes...</span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : !filteredCustomers?.length ? (
         <Card>
           <CardContent className="py-10">
             <p className="text-center text-muted-foreground">

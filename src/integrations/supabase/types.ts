@@ -272,9 +272,11 @@ export type Database = {
           booking_enabled: boolean
           buffer_minutes: number
           cancellation_policy_text: string | null
+          city: string | null
           created_at: string
           description: string | null
           id: string
+          instagram: string | null
           logo_url: string | null
           max_future_days: number
           name: string
@@ -284,6 +286,7 @@ export type Database = {
           reschedule_min_hours: number
           slot_interval_minutes: number
           slug: string
+          state: string | null
           timezone: string
         }
         Insert: {
@@ -294,9 +297,11 @@ export type Database = {
           booking_enabled?: boolean
           buffer_minutes?: number
           cancellation_policy_text?: string | null
+          city?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          instagram?: string | null
           logo_url?: string | null
           max_future_days?: number
           name: string
@@ -306,6 +311,7 @@ export type Database = {
           reschedule_min_hours?: number
           slot_interval_minutes?: number
           slug: string
+          state?: string | null
           timezone?: string
         }
         Update: {
@@ -316,9 +322,11 @@ export type Database = {
           booking_enabled?: boolean
           buffer_minutes?: number
           cancellation_policy_text?: string | null
+          city?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          instagram?: string | null
           logo_url?: string | null
           max_future_days?: number
           name?: string
@@ -328,6 +336,7 @@ export type Database = {
           reschedule_min_hours?: number
           slot_interval_minutes?: number
           slug?: string
+          state?: string | null
           timezone?: string
         }
         Relationships: []
