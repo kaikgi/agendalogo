@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, Upload, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -24,15 +25,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { ProfessionalHoursDialog } from '@/components/dashboard/ProfessionalHoursDialog';
 import { ProfessionalServicesDialog } from '@/components/dashboard/ProfessionalServicesDialog';
 
 interface ProfessionalForm {
   name: string;
   capacity: number;
+  photo_url: string | null;
 }
 
 export default function Profissionais() {
@@ -47,7 +51,13 @@ export default function Profissionais() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string } | null>(null);
-  const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1 });
+  const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1, photo_url: null });
+  
+  // Photo upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   const handleRetry = () => {
     if (estError) refetchEst();
@@ -56,14 +66,80 @@ export default function Profissionais() {
 
   const handleOpenCreate = () => {
     setEditingId(null);
-    setForm({ name: '', capacity: 1 });
+    setForm({ name: '', capacity: 1, photo_url: null });
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (prof: { id: string; name: string; capacity: number }) => {
+  const handleOpenEdit = (prof: { id: string; name: string; capacity: number; photo_url: string | null }) => {
     setEditingId(prof.id);
-    setForm({ name: prof.name, capacity: prof.capacity });
+    setForm({ name: prof.name, capacity: prof.capacity, photo_url: prof.photo_url || null });
     setDialogOpen(true);
+  };
+
+  // Handle file selection for photo
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Selecione uma imagem válida', variant: 'destructive' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'A imagem deve ter no máximo 5MB', variant: 'destructive' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+      setCropDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle cropped photo - upload immediately if editing existing professional
+  const handleCroppedPhoto = async (croppedBlob: Blob) => {
+    setCropDialogOpen(false);
+    setImageToCrop(null);
+
+    if (editingId) {
+      // Upload immediately for existing professional
+      setUploadingPhoto(true);
+      try {
+        const filePath = `${editingId}/photo.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('professional-photos')
+          .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('professional-photos')
+          .getPublicUrl(filePath);
+
+        const urlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
+
+        await update({ id: editingId, photo_url: urlWithCacheBuster });
+        setForm({ ...form, photo_url: urlWithCacheBuster });
+        toast({ title: 'Foto atualizada!' });
+      } catch (err: any) {
+        toast({ title: 'Erro ao enviar foto', description: err?.message, variant: 'destructive' });
+      } finally {
+        setUploadingPhoto(false);
+      }
+    } else {
+      // For new professional, store blob URL temporarily
+      const tempUrl = URL.createObjectURL(croppedBlob);
+      setForm({ ...form, photo_url: tempUrl });
+      // Store the blob for later upload
+      (window as any).__pendingProfessionalPhotoBlob = croppedBlob;
+    }
   };
 
   const handleSubmit = async () => {
@@ -74,11 +150,32 @@ export default function Profissionais() {
         await update({ id: editingId, name: form.name, capacity: form.capacity });
         toast({ title: 'Profissional atualizado!' });
       } else {
-        await create({
+        const newProf = await create({
           establishment_id: establishment!.id,
           name: form.name,
           capacity: form.capacity,
         });
+        
+        // Upload pending photo if exists
+        const pendingBlob = (window as any).__pendingProfessionalPhotoBlob;
+        if (pendingBlob && newProf?.id) {
+          try {
+            const filePath = `${newProf.id}/photo.jpg`;
+            await supabase.storage
+              .from('professional-photos')
+              .upload(filePath, pendingBlob, { upsert: true, contentType: 'image/jpeg' });
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('professional-photos')
+              .getPublicUrl(filePath);
+
+            await update({ id: newProf.id, photo_url: `${publicUrl}?t=${Date.now()}` });
+          } catch (photoErr) {
+            console.error('Failed to upload photo:', photoErr);
+          }
+          delete (window as any).__pendingProfessionalPhotoBlob;
+        }
+        
         toast({ title: 'Profissional criado!' });
       }
       setDialogOpen(false);
@@ -168,11 +265,21 @@ export default function Profissionais() {
           {professionals.map((prof) => (
             <Card key={prof.id}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{prof.name}</CardTitle>
-                  <Badge variant={prof.active ? 'default' : 'secondary'}>
-                    {prof.active ? 'Ativo' : 'Inativo'}
-                  </Badge>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    {prof.photo_url ? (
+                      <AvatarImage src={prof.photo_url} alt={prof.name} />
+                    ) : null}
+                    <AvatarFallback>
+                      {prof.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg truncate">{prof.name}</CardTitle>
+                    <Badge variant={prof.active ? 'default' : 'secondary'} className="mt-1">
+                      {prof.active ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -246,6 +353,41 @@ export default function Profissionais() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Photo upload */}
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                {form.photo_url ? (
+                  <AvatarImage src={form.photo_url} alt="Foto" />
+                ) : null}
+                <AvatarFallback className="text-xl">
+                  {form.name?.charAt(0)?.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {form.photo_url ? 'Alterar Foto' : 'Adicionar Foto'}
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
               <Input
@@ -317,6 +459,21 @@ export default function Profissionais() {
           professionalId={selectedProfessional.id}
           professionalName={selectedProfessional.name}
           establishmentId={establishment.id}
+        />
+      )}
+
+      {/* Image Crop Dialog */}
+      {imageToCrop && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onClose={() => {
+            setCropDialogOpen(false);
+            setImageToCrop(null);
+          }}
+          imageSrc={imageToCrop}
+          onCropComplete={handleCroppedPhoto}
+          aspectRatio={1}
+          title="Recortar Foto"
         />
       )}
     </div>
