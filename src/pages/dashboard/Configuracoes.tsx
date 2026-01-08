@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Save, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Save, Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Upload, Trash2, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +46,11 @@ export default function Configuracoes() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   
+  // Logo upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  
   // Slug state
   const [slug, setSlug] = useState('');
   const [slugError, setSlugError] = useState<string | null>(null);
@@ -72,6 +78,7 @@ export default function Configuracoes() {
       setSlug(establishment.slug || '');
       setSlugAvailable(null);
       setSlugError(null);
+      setLogoUrl(establishment.logo_url || null);
       setForm({
         name: establishment.name || '',
         description: establishment.description || '',
@@ -88,6 +95,106 @@ export default function Configuracoes() {
       });
     }
   }, [establishment]);
+
+  // Handle logo upload
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !establishment) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Selecione uma imagem válida', variant: 'destructive' });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'A imagem deve ter no máximo 2MB', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingLogo(true);
+
+    try {
+      // Create file path: establishment_id/logo.ext
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${establishment.id}/logo.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('establishment-logos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('establishment-logos')
+        .getPublicUrl(filePath);
+
+      // Update establishment with new logo URL
+      const { error: updateError } = await supabase
+        .from('establishments')
+        .update({ logo_url: publicUrl })
+        .eq('id', establishment.id);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
+      queryClient.invalidateQueries({ queryKey: ['user-establishment'] });
+      toast({ title: 'Logo atualizado!' });
+    } catch (err: any) {
+      toast({ 
+        title: 'Erro ao enviar logo', 
+        description: err?.message || 'Tente novamente',
+        variant: 'destructive' 
+      });
+    } finally {
+      setUploadingLogo(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle logo removal
+  const handleRemoveLogo = async () => {
+    if (!establishment || !logoUrl) return;
+
+    setUploadingLogo(true);
+
+    try {
+      // Extract file path from URL
+      const urlParts = logoUrl.split('/establishment-logos/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        await supabase.storage
+          .from('establishment-logos')
+          .remove([filePath]);
+      }
+
+      // Update establishment to remove logo URL
+      const { error } = await supabase
+        .from('establishments')
+        .update({ logo_url: null })
+        .eq('id', establishment.id);
+
+      if (error) throw error;
+
+      setLogoUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['user-establishment'] });
+      toast({ title: 'Logo removido!' });
+    } catch (err: any) {
+      toast({ 
+        title: 'Erro ao remover logo', 
+        description: err?.message || 'Tente novamente',
+        variant: 'destructive' 
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   // Check slug availability with debounce
   const checkSlugAvailability = useCallback(async (slugToCheck: string) => {
@@ -315,6 +422,71 @@ export default function Configuracoes() {
             <p className="text-xs text-muted-foreground">
               Use apenas letras minúsculas, números e hífens. Mínimo 3, máximo 40 caracteres.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Logo Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Logo do Estabelecimento</CardTitle>
+          <CardDescription>
+            Adicione uma logo para personalizar sua página de agendamento
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-6">
+            <Avatar className="h-24 w-24">
+              {logoUrl ? (
+                <AvatarImage src={logoUrl} alt="Logo" />
+              ) : null}
+              <AvatarFallback className="text-2xl bg-muted">
+                {form.name?.charAt(0)?.toUpperCase() || '?'}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+              
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                >
+                  {uploadingLogo ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {logoUrl ? 'Alterar Logo' : 'Enviar Logo'}
+                </Button>
+                
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRemoveLogo}
+                    disabled={uploadingLogo}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remover
+                  </Button>
+                )}
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 2MB.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
