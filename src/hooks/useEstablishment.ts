@@ -15,9 +15,10 @@ export function useEstablishment(slug: string | undefined) {
         .select('*')
         .eq('slug', slug)
         .eq('booking_enabled', true)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Estabelecimento não encontrado ou agendamento desativado');
       return data as Establishment;
     },
     enabled: !!slug,
