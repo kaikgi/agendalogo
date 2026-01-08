@@ -6,49 +6,97 @@ import {
   Shield, 
   Smartphone,
   BarChart3,
-  Zap
+  Zap,
+  LucideIcon
 } from "lucide-react";
 
-const features = [
+interface Feature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  details: string[];
+}
+
+const features: Feature[] = [
   {
     icon: Calendar,
     title: "Agendamento inteligente",
     description: "Página de agendamento personalizada com seu domínio. Seus clientes agendam 24/7 sem você precisar atender.",
+    details: [
+      "Link personalizado para seu negócio",
+      "Disponibilidade em tempo real",
+      "Seleção de profissional e serviço"
+    ]
   },
   {
     icon: Clock,
     title: "Gestão de horários",
     description: "Configure horários de funcionamento, bloqueios e capacidade por profissional de forma flexível.",
+    details: [
+      "Horários por dia da semana",
+      "Bloqueios pontuais e recorrentes",
+      "Intervalo entre atendimentos"
+    ]
   },
   {
     icon: Users,
     title: "Multi-profissionais",
     description: "Gerencie toda sua equipe em um só lugar. Cada profissional com seus próprios serviços e disponibilidade.",
+    details: [
+      "Agenda individual por profissional",
+      "Serviços específicos por membro",
+      "Fotos e perfis personalizados"
+    ]
   },
   {
     icon: Bell,
     title: "Lembretes automáticos",
     description: "Reduza faltas com lembretes via WhatsApp. Confirmação e cancelamento com um clique.",
+    details: [
+      "Notificações via WhatsApp",
+      "Confirmação de presença",
+      "Redução de no-shows"
+    ]
   },
   {
     icon: Shield,
     title: "Self-service seguro",
     description: "Clientes podem remarcar ou cancelar pelo link privado, respeitando suas regras de antecedência.",
+    details: [
+      "Link exclusivo por agendamento",
+      "Regras de antecedência mínima",
+      "Política de cancelamento"
+    ]
   },
   {
     icon: Smartphone,
     title: "Mobile-first",
     description: "Interface otimizada para dispositivos móveis. Seus clientes agendam em segundos.",
+    details: [
+      "Design responsivo premium",
+      "Carregamento ultra-rápido",
+      "Experiência fluida em qualquer tela"
+    ]
   },
   {
     icon: BarChart3,
     title: "Métricas em tempo real",
     description: "Dashboard com insights sobre agendamentos, cancelamentos e serviços mais populares.",
+    details: [
+      "Visão geral do dia e semana",
+      "Top serviços e profissionais",
+      "Taxa de cancelamento"
+    ]
   },
   {
     icon: Zap,
     title: "Setup instantâneo",
     description: "Configure seu estabelecimento em minutos e comece a receber agendamentos hoje.",
+    details: [
+      "Cadastro em menos de 5 minutos",
+      "Importação de serviços",
+      "Suporte dedicado"
+    ]
   },
 ];
 
@@ -71,17 +119,41 @@ export function FeaturesSection() {
         </div>
 
         {/* Features grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
-          {features.map((feature) => (
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="group p-6 rounded-2xl bg-card border border-border hover:border-foreground/20 hover:shadow-elegant transition-premium"
+              className="group p-6 rounded-2xl bg-card border border-border hover:border-foreground/20 hover:shadow-elegant transition-premium animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
             >
-              <div className="w-12 h-12 rounded-xl bg-secondary group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center mb-5 transition-premium">
-                <feature.icon size={24} />
+              {/* Animated icon container */}
+              <div className="w-14 h-14 rounded-xl bg-secondary group-hover:bg-primary flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
+                <feature.icon 
+                  size={26} 
+                  className="text-foreground group-hover:text-primary-foreground transition-colors duration-300" 
+                />
               </div>
-              <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-              <p className="text-body-sm text-muted-foreground">{feature.description}</p>
+              
+              <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors duration-300">
+                {feature.title}
+              </h3>
+              
+              <p className="text-body-sm text-muted-foreground mb-4">
+                {feature.description}
+              </p>
+
+              {/* Feature details list */}
+              <ul className="space-y-2">
+                {feature.details.map((detail, i) => (
+                  <li 
+                    key={i} 
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-primary flex-shrink-0" />
+                    {detail}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
