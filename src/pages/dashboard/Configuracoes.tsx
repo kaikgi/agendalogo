@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Save, Copy, Check, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Save, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,32 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Reserved slugs that cannot be used
+const RESERVED_SLUGS = ['app', 'dashboard', 'login', 'entrar', 'criar-conta', 'signup', 'api', 'admin', 'settings', 'configuracoes', 'agenda', 'profissionais', 'servicos', 'clientes', 'horarios', 'bloqueios'];
+
+// Slug validation regex: lowercase letters, numbers, and hyphens only
+const SLUG_REGEX = /^[a-z0-9-]+$/;
+
+function normalizeSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/[^a-z0-9-]/g, '') // Remove invalid chars
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
+function validateSlug(slug: string): { valid: boolean; error?: string } {
+  if (!slug) return { valid: false, error: 'O link é obrigatório' };
+  if (slug.length < 3) return { valid: false, error: 'Mínimo de 3 caracteres' };
+  if (slug.length > 40) return { valid: false, error: 'Máximo de 40 caracteres' };
+  if (!SLUG_REGEX.test(slug)) return { valid: false, error: 'Apenas letras minúsculas, números e hífen' };
+  if (RESERVED_SLUGS.includes(slug)) return { valid: false, error: 'Este link é reservado' };
+  return { valid: true };
+}
+
 export default function Configuracoes() {
   const { data: establishment, isLoading, error, refetch } = useUserEstablishment();
   const { toast } = useToast();
@@ -18,6 +44,13 @@ export default function Configuracoes() {
 
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  // Slug state
+  const [slug, setSlug] = useState('');
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [checkingSlug, setCheckingSlug] = useState(false);
+  
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -33,6 +66,9 @@ export default function Configuracoes() {
   // Initialize form when establishment loads
   useEffect(() => {
     if (establishment) {
+      setSlug(establishment.slug || '');
+      setSlugAvailable(null);
+      setSlugError(null);
       setForm({
         name: establishment.name || '',
         description: establishment.description || '',
@@ -47,8 +83,85 @@ export default function Configuracoes() {
     }
   }, [establishment]);
 
+  // Check slug availability with debounce
+  const checkSlugAvailability = useCallback(async (slugToCheck: string) => {
+    if (!establishment || slugToCheck === establishment.slug) {
+      setSlugAvailable(null);
+      return;
+    }
+
+    const validation = validateSlug(slugToCheck);
+    if (!validation.valid) {
+      setSlugError(validation.error || null);
+      setSlugAvailable(null);
+      return;
+    }
+
+    setCheckingSlug(true);
+    setSlugError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('establishments')
+        .select('id')
+        .eq('slug', slugToCheck)
+        .neq('id', establishment.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSlugAvailable(false);
+        setSlugError('Este link já está em uso');
+      } else {
+        setSlugAvailable(true);
+        setSlugError(null);
+      }
+    } catch (err) {
+      setSlugError('Erro ao verificar disponibilidade');
+      setSlugAvailable(null);
+    } finally {
+      setCheckingSlug(false);
+    }
+  }, [establishment]);
+
+  // Debounced slug check
+  useEffect(() => {
+    if (!slug || !establishment) return;
+    
+    const timer = setTimeout(() => {
+      checkSlugAvailability(slug);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [slug, checkSlugAvailability, establishment]);
+
+  const handleSlugChange = (value: string) => {
+    const normalized = normalizeSlug(value);
+    setSlug(normalized);
+    
+    const validation = validateSlug(normalized);
+    if (!validation.valid) {
+      setSlugError(validation.error || null);
+      setSlugAvailable(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!establishment) return;
+
+    // Validate slug before saving
+    const validation = validateSlug(slug);
+    if (!validation.valid) {
+      toast({ title: validation.error || 'Slug inválido', variant: 'destructive' });
+      return;
+    }
+
+    // Check if slug changed and is not available
+    if (slug !== establishment.slug && slugAvailable === false) {
+      toast({ title: 'Este link já está em uso', variant: 'destructive' });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -56,6 +169,7 @@ export default function Configuracoes() {
         .from('establishments')
         .update({
           name: form.name,
+          slug: slug,
           description: form.description || null,
           phone: form.phone || null,
           address: form.address || null,
@@ -67,20 +181,31 @@ export default function Configuracoes() {
         })
         .eq('id', establishment.id);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: 'Este link já está em uso', variant: 'destructive' });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       queryClient.invalidateQueries({ queryKey: ['user-establishment'] });
       toast({ title: 'Configurações salvas!' });
-    } catch (error) {
-      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ 
+        title: 'Erro ao salvar', 
+        description: err?.message || 'Tente novamente',
+        variant: 'destructive' 
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleCopyLink = () => {
-    if (!establishment) return;
-    const link = `${window.location.origin}/${establishment.slug}`;
+    if (!slug) return;
+    const link = `${window.location.origin}/${slug}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({ title: 'Link copiado!' });
@@ -132,19 +257,55 @@ export default function Configuracoes() {
         <CardHeader>
           <CardTitle className="text-lg">Link Público</CardTitle>
           <CardDescription>
-            Compartilhe este link para seus clientes agendarem
+            Personalize o link que seus clientes usarão para agendar
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={`${window.location.origin}/${establishment.slug}`}
-              className="font-mono text-sm"
-            />
-            <Button variant="outline" onClick={handleCopyLink}>
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="slug">Seu link personalizado</Label>
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center">
+                <span className="px-3 py-2 bg-muted rounded-l-md border border-r-0 text-sm text-muted-foreground">
+                  {window.location.origin}/
+                </span>
+                <Input
+                  id="slug"
+                  value={slug}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  className="rounded-l-none"
+                  placeholder="seu-negocio"
+                />
+              </div>
+              <Button variant="outline" onClick={handleCopyLink} disabled={!slug}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            
+            {/* Slug status indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {checkingSlug && (
+                <span className="text-muted-foreground">Verificando disponibilidade...</span>
+              )}
+              {!checkingSlug && slugError && (
+                <span className="text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {slugError}
+                </span>
+              )}
+              {!checkingSlug && !slugError && slugAvailable === true && (
+                <span className="text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Link disponível!
+                </span>
+              )}
+              {!checkingSlug && !slugError && slug === establishment?.slug && (
+                <span className="text-muted-foreground">Link atual</span>
+              )}
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              Use apenas letras minúsculas, números e hífens. Mínimo 3, máximo 40 caracteres.
+            </p>
           </div>
         </CardContent>
       </Card>
