@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
   ExternalLink,
   Clock,
   CalendarOff,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
@@ -28,6 +31,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -42,16 +46,30 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const { data: establishment } = useUserEstablishment();
   const { state } = useSidebar();
+  const { toast } = useToast();
   const collapsed = state === 'collapsed';
+  const [copied, setCopied] = useState(false);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!establishment?.slug) return;
+    
+    const link = `${window.location.origin}/${establishment.slug}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast({ title: 'Link copiado!' });
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -98,20 +116,38 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip="Abrir página de agendamento"
-                  >
-                    <a
-                      href={`/${establishment.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground"
+                  <div className="flex items-center gap-1">
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="Abrir página de agendamento"
+                      className="flex-1"
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="truncate">/{establishment.slug}</span>
-                    </a>
-                  </SidebarMenuButton>
+                      <a
+                        href={`/${establishment.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="truncate">/{establishment.slug}</span>
+                      </a>
+                    </SidebarMenuButton>
+                    {!collapsed && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={handleCopyLink}
+                        title="Copiar link"
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
