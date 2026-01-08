@@ -77,11 +77,15 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-sm">A</span>
+            <span className="text-primary-foreground font-bold text-sm">
+              {establishment?.name?.charAt(0).toUpperCase() || 'A'}
+            </span>
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm truncate">AgendaI</span>
+              <span className="font-semibold text-sm truncate">
+                {establishment?.name || 'AgendaI'}
+              </span>
             </div>
           )}
         </div>
