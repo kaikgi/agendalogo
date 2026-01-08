@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { format, parse } from 'date-fns';
 import { useEstablishment } from '@/hooks/useEstablishment';
 import { useServices, type Service } from '@/hooks/useServices';
 import { useProfessionalsByService, type Professional } from '@/hooks/useProfessionals';
@@ -19,10 +18,24 @@ import type { CustomerFormData } from '@/lib/validations/booking';
 
 const STEPS = ['Serviço', 'Profissional', 'Data/Hora', 'Dados'];
 
+type SupabaseLikeError = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
+function formatSupabaseError(err: unknown): string {
+  if (!err || typeof err !== 'object') return 'Erro desconhecido.';
+  const e = err as SupabaseLikeError;
+  const parts = [e.message, e.details, e.hint, e.code].filter(Boolean);
+  return parts.length ? parts.join(' • ') : 'Erro desconhecido.';
+}
+
 export default function PublicBooking() {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
-  
+
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
@@ -30,10 +43,17 @@ export default function PublicBooking() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [manageToken, setManageToken] = useState<string | null>(null);
 
-  const { data: establishment, isLoading: isLoadingEstablishment, error: establishmentError } = useEstablishment(slug);
-  const { data: services = [], isLoading: isLoadingServices } = useServices(establishment?.id);
-  const { data: professionals = [], isLoading: isLoadingProfessionals } = useProfessionalsByService(selectedService?.id);
+  const {
+    data: establishment,
+    isLoading: isLoadingEstablishment,
+    error: establishmentError,
+  } = useEstablishment(slug);
+  const { data: services = [] } = useServices(establishment?.id);
+  const { data: professionals = [], isLoading: isLoadingProfessionals } = useProfessionalsByService(
+    selectedService?.id
+  );
   const { data: availableSlots = [], isLoading: isLoadingSlots } = useAvailableSlots({
     establishmentId: establishment?.id,
     professionalId: selectedProfessional?.id,
@@ -74,28 +94,37 @@ export default function PublicBooking() {
     }
   };
 
-  // Helper function to generate random token
   const generateToken = (): string => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
-    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
   };
 
-  // Helper function to hash token
   const hashToken = async (token: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(token);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   };
 
   const handleSubmit = async (customerData: CustomerFormData) => {
+    console.log('submit clicked', {
+      slug,
+      customerData,
+      selectedServiceId: selectedService?.id,
+      selectedProfessionalId: selectedProfessional?.id,
+      selectedDate,
+      selectedTime,
+    });
+
+    if (isSubmitting) return;
+
     if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
+        title: 'Campos incompletos',
+        description: 'Escolha serviço, profissional, data/hora e preencha seus dados.',
       });
       return;
     }
@@ -103,19 +132,35 @@ export default function PublicBooking() {
     setIsSubmitting(true);
 
     try {
-      // Create or find customer
-      const { data: existingCustomer } = await supabase
+      // 1) Derive start/end
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const startAt = new Date(selectedDate);
+      startAt.setHours(hours, minutes, 0, 0);
+
+      const endAt = new Date(startAt);
+      endAt.setMinutes(endAt.getMinutes() + selectedService.duration_minutes);
+
+      const startIso = startAt.toISOString();
+      const endIso = endAt.toISOString();
+
+      // 2) Create or find customer
+      const { data: existingCustomer, error: existingCustomerError } = await supabase
         .from('customers')
         .select('id')
         .eq('establishment_id', establishment.id)
         .eq('phone', customerData.phone)
         .maybeSingle();
 
+      if (existingCustomerError) {
+        console.log('customers select error', existingCustomerError);
+        throw new Error(`Erro ao consultar cliente: ${formatSupabaseError(existingCustomerError)}`);
+      }
+
       let customerId: string;
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
-        // Update customer name/email if different
+
         const { error: updateError } = await supabase
           .from('customers')
           .update({
@@ -123,9 +168,10 @@ export default function PublicBooking() {
             email: customerData.email || null,
           })
           .eq('id', customerId);
-        
+
         if (updateError) {
-          console.error('Customer update error:', updateError);
+          console.log('customers update error', updateError);
+          // não bloqueia o agendamento
         }
       } else {
         const { data: newCustomer, error: customerError } = await supabase
@@ -140,21 +186,52 @@ export default function PublicBooking() {
           .single();
 
         if (customerError) {
-          console.error('Customer creation error:', customerError);
-          throw new Error('Erro ao criar cadastro do cliente. Tente novamente.');
+          console.log('customers insert error', customerError);
+          throw new Error(`Erro ao criar cliente: ${formatSupabaseError(customerError)}`);
         }
+
         customerId = newCustomer.id;
       }
 
-      // Parse date and time
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      const startAt = new Date(selectedDate);
-      startAt.setHours(hours, minutes, 0, 0);
-      
-      const endAt = new Date(startAt);
-      endAt.setMinutes(endAt.getMinutes() + selectedService.duration_minutes);
+      // 3) Re-check availability (avoid race conditions)
+      const { data: overlappingAppointments, error: overlapAppointmentsError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('establishment_id', establishment.id)
+        .eq('professional_id', selectedProfessional.id)
+        .in('status', ['booked', 'confirmed'])
+        .lt('start_at', endIso)
+        .gt('end_at', startIso)
+        .limit(1);
 
-      // Create appointment
+      if (overlapAppointmentsError) {
+        console.log('appointments overlap check error', overlapAppointmentsError);
+        throw new Error(`Erro ao checar disponibilidade: ${formatSupabaseError(overlapAppointmentsError)}`);
+      }
+
+      if (overlappingAppointments && overlappingAppointments.length > 0) {
+        throw new Error('Este horário acabou de ser reservado. Escolha outro horário.');
+      }
+
+      const { data: overlappingBlocks, error: overlapBlocksError } = await supabase
+        .from('time_blocks')
+        .select('id')
+        .eq('establishment_id', establishment.id)
+        .or(`professional_id.is.null,professional_id.eq.${selectedProfessional.id}`)
+        .lt('start_at', endIso)
+        .gt('end_at', startIso)
+        .limit(1);
+
+      if (overlapBlocksError) {
+        console.log('time_blocks overlap check error', overlapBlocksError);
+        throw new Error(`Erro ao checar bloqueios: ${formatSupabaseError(overlapBlocksError)}`);
+      }
+
+      if (overlappingBlocks && overlappingBlocks.length > 0) {
+        throw new Error('Este horário está bloqueado. Escolha outro horário.');
+      }
+
+      // 4) Create appointment
       const { data: newAppointment, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
@@ -162,8 +239,8 @@ export default function PublicBooking() {
           professional_id: selectedProfessional.id,
           service_id: selectedService.id,
           customer_id: customerId,
-          start_at: startAt.toISOString(),
-          end_at: endAt.toISOString(),
+          start_at: startIso,
+          end_at: endIso,
           status: establishment.auto_confirm_bookings ? 'confirmed' : 'booked',
           customer_notes: customerData.notes || null,
         })
@@ -171,32 +248,31 @@ export default function PublicBooking() {
         .single();
 
       if (appointmentError) {
-        console.error('Appointment creation error:', appointmentError);
-        throw new Error('Erro ao criar agendamento. Tente novamente.');
+        console.log('appointments insert error', appointmentError);
+        throw new Error(`Erro ao criar agendamento: ${formatSupabaseError(appointmentError)}`);
       }
 
-      // Generate management token for customer self-service
+      // 5) Generate management token
       const token = generateToken();
       const tokenHash = await hashToken(token);
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // Token expires in 30 days
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
-      const { error: tokenError } = await supabase
-        .from('appointment_manage_tokens')
-        .insert({
-          appointment_id: newAppointment.id,
-          token_hash: tokenHash,
-          expires_at: expiresAt.toISOString(),
-        });
+      const { error: tokenError } = await supabase.from('appointment_manage_tokens').insert({
+        appointment_id: newAppointment.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt.toISOString(),
+      });
 
       if (tokenError) {
-        console.error('Token creation error:', tokenError);
-        // Don't fail the booking if token creation fails - appointment was created successfully
+        console.log('appointment_manage_tokens insert error', tokenError);
+        // não bloqueia confirmação (agendamento já existe)
       }
 
+      setManageToken(token);
       setIsSuccess(true);
     } catch (error) {
-      console.error('Booking error:', error);
+      console.log('Booking error (raw):', error);
       const errorMessage = error instanceof Error ? error.message : 'Não foi possível concluir o agendamento. Tente novamente.';
       toast({
         variant: 'destructive',
@@ -231,6 +307,10 @@ export default function PublicBooking() {
   }
 
   if (isSuccess && selectedService && selectedProfessional && selectedDate && selectedTime) {
+    const manageUrl = manageToken
+      ? `${window.location.origin}/${establishment.slug}/gerenciar/${manageToken}`
+      : null;
+
     return (
       <div className="min-h-screen bg-background">
         <div className="container max-w-lg mx-auto px-4 py-8">
@@ -240,6 +320,7 @@ export default function PublicBooking() {
             date={selectedDate}
             time={selectedTime}
             establishmentName={establishment.name}
+            manageUrl={manageUrl}
           />
         </div>
       </div>
@@ -256,6 +337,7 @@ export default function PublicBooking() {
                 src={establishment.logo_url}
                 alt={establishment.name}
                 className="w-10 h-10 rounded-full object-cover"
+                loading="lazy"
               />
             )}
             <div>
@@ -270,12 +352,7 @@ export default function PublicBooking() {
         <StepIndicator currentStep={currentStep} steps={STEPS} />
 
         {currentStep > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4"
-            onClick={handleBack}
-          >
+          <Button variant="ghost" size="sm" className="mb-4" onClick={handleBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar
           </Button>
@@ -311,11 +388,7 @@ export default function PublicBooking() {
         )}
 
         {currentStep === 3 && (
-          <CustomerStep
-            establishment={establishment}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
+          <CustomerStep establishment={establishment} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
         )}
       </main>
     </div>
