@@ -1,5 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Calendar, Clock, Users } from "lucide-react";
+
+import professional1 from "@/assets/avatars/professional-1.jpg";
+import professional2 from "@/assets/avatars/professional-2.jpg";
+import professional3 from "@/assets/avatars/professional-3.jpg";
+import professional4 from "@/assets/avatars/professional-4.jpg";
+import professional5 from "@/assets/avatars/professional-5.jpg";
+
+const professionalAvatars = [
+  professional1,
+  professional2,
+  professional3,
+  professional4,
+  professional5,
+];
 import { Link } from "react-router-dom";
 
 export function HeroSection() {
@@ -54,13 +68,13 @@ export function HeroSection() {
             {/* Social proof */}
             <div className="flex items-center gap-6 pt-4">
               <div className="flex -space-x-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
+                {professionalAvatars.map((avatar, i) => (
+                  <img
                     key={i}
-                    className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium"
-                  >
-                    {String.fromCharCode(64 + i)}
-                  </div>
+                    src={avatar}
+                    alt={`Profissional ${i + 1}`}
+                    className="w-8 h-8 rounded-full border-2 border-background object-cover"
+                  />
                 ))}
               </div>
               <div className="text-body-sm text-muted-foreground">
