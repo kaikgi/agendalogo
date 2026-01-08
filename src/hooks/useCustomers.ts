@@ -30,7 +30,7 @@ export function useCustomers(establishmentId: string | undefined) {
       
       const { data, error } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, name, phone, email, created_at, establishment_id')
         .eq('establishment_id', establishmentId)
         .order('name');
 
@@ -38,6 +38,8 @@ export function useCustomers(establishmentId: string | undefined) {
       return data as Customer[];
     },
     enabled: !!establishmentId,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 }
 
