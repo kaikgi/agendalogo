@@ -35,9 +35,14 @@ export function useManageProfessionals(establishmentId: string | undefined) {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: CreateProfessionalData) => {
-      const { error } = await supabase.from('professionals').insert(data);
+    mutationFn: async (data: CreateProfessionalData): Promise<Professional> => {
+      const { data: newProf, error } = await supabase
+        .from('professionals')
+        .insert(data)
+        .select()
+        .single();
       if (error) throw error;
+      return newProf as Professional;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manage-professionals', establishmentId] });
