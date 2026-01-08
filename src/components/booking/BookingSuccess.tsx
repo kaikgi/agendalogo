@@ -1,7 +1,8 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle2, Calendar, Clock, User, Briefcase } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, User, Briefcase, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 
 interface BookingSuccessProps {
@@ -10,6 +11,7 @@ interface BookingSuccessProps {
   date: Date;
   time: string;
   establishmentName: string;
+  manageUrl?: string | null;
 }
 
 export function BookingSuccess({
@@ -18,7 +20,16 @@ export function BookingSuccess({
   date,
   time,
   establishmentName,
+  manageUrl,
 }: BookingSuccessProps) {
+  const { toast } = useToast();
+
+  const handleCopyManageLink = async () => {
+    if (!manageUrl) return;
+    await navigator.clipboard.writeText(manageUrl);
+    toast({ title: 'Link copiado!' });
+  };
+
   return (
     <div className="text-center space-y-6 py-8">
       <div className="flex justify-center">
@@ -29,9 +40,7 @@ export function BookingSuccess({
 
       <div>
         <h2 className="text-2xl font-bold">Agendamento confirmado!</h2>
-        <p className="text-muted-foreground mt-2">
-          Seu horário em {establishmentName} foi reservado.
-        </p>
+        <p className="text-muted-foreground mt-2">Seu horário em {establishmentName} foi reservado.</p>
       </div>
 
       <div className="bg-muted rounded-lg p-6 text-left space-y-4 max-w-sm mx-auto">
@@ -53,9 +62,21 @@ export function BookingSuccess({
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Você receberá uma confirmação por WhatsApp.
-      </p>
+      {manageUrl ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Seu link para gerenciar este agendamento:</p>
+          <div className="flex gap-2 max-w-sm mx-auto">
+            <Button type="button" variant="outline" className="flex-1 justify-start truncate" asChild>
+              <a href={manageUrl}>{manageUrl}</a>
+            </Button>
+            <Button type="button" variant="outline" onClick={handleCopyManageLink}>
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Você pode gerenciar seu agendamento pelo link enviado.</p>
+      )}
 
       <Button asChild variant="outline">
         <Link to="/">Voltar ao início</Link>

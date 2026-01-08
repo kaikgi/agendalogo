@@ -11,7 +11,7 @@ import type { Establishment } from '@/hooks/useEstablishment';
 
 interface CustomerStepProps {
   establishment: Establishment;
-  onSubmit: (data: CustomerFormData) => void;
+  onSubmit: (data: CustomerFormData) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -42,26 +42,31 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
-    setValue('phone', formatted);
+    setValue('phone', formatted, { shouldValidate: true });
   };
 
   const acceptPolicy = watch('acceptPolicy');
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={handleSubmit(
+        async (data) => {
+          console.log('submit clicked (customer step)', data);
+          await onSubmit(data);
+        },
+        (formErrors) => {
+          console.log('submit blocked by validation', formErrors);
+        }
+      )}
+      className="space-y-6"
+    >
       <h2 className="text-lg font-semibold">Seus dados</h2>
 
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nome completo *</Label>
-          <Input
-            id="name"
-            placeholder="Seu nome"
-            {...register('name')}
-          />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name.message}</p>
-          )}
+          <Input id="name" placeholder="Seu nome" {...register('name')} />
+          {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
         </div>
 
         <div className="space-y-2">
@@ -72,9 +77,7 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
             {...register('phone')}
             onChange={handlePhoneChange}
           />
-          {errors.phone && (
-            <p className="text-sm text-destructive">{errors.phone.message}</p>
-          )}
+          {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
         </div>
 
         {establishment.ask_email && (
@@ -86,9 +89,7 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
               placeholder="seu@email.com"
               {...register('email')}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
         )}
 
@@ -101,23 +102,31 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
               rows={3}
               {...register('notes')}
             />
-            {errors.notes && (
-              <p className="text-sm text-destructive">{errors.notes.message}</p>
-            )}
+            {errors.notes && <p className="text-sm text-destructive">{errors.notes.message}</p>}
           </div>
         )}
 
-        {establishment.require_policy_acceptance && establishment.cancellation_policy_text && (
+        {establishment.require_policy_acceptance && (
           <div className="space-y-3 p-4 bg-muted rounded-lg">
             <h3 className="font-medium text-sm">Política de cancelamento</h3>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {establishment.cancellation_policy_text}
-            </p>
+
+            {establishment.cancellation_policy_text ? (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {establishment.cancellation_policy_text}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Para concluir, confirme que você leu e aceita a política de cancelamento.
+              </p>
+            )}
+
             <div className="flex items-start gap-2">
               <Checkbox
                 id="acceptPolicy"
                 checked={acceptPolicy}
-                onCheckedChange={(checked) => setValue('acceptPolicy', checked === true)}
+                onCheckedChange={(checked) =>
+                  setValue('acceptPolicy', checked === true, { shouldValidate: true })
+                }
               />
               <Label htmlFor="acceptPolicy" className="text-sm font-normal cursor-pointer">
                 Li e aceito a política de cancelamento
@@ -132,7 +141,7 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Confirmar agendamento
+        {isSubmitting ? 'Confirmando…' : 'Confirmar agendamento'}
       </Button>
     </form>
   );
