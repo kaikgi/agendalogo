@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +51,8 @@ export default function Configuracoes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   
   // Slug state
   const [slug, setSlug] = useState('');
@@ -96,8 +99,8 @@ export default function Configuracoes() {
     }
   }, [establishment]);
 
-  // Handle logo upload
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection - opens crop dialog
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !establishment) return;
 
@@ -107,40 +110,64 @@ export default function Configuracoes() {
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'A imagem deve ter no máximo 2MB', variant: 'destructive' });
+    // Validate file size (max 5MB for original, will be compressed after crop)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'A imagem deve ter no máximo 5MB', variant: 'destructive' });
       return;
     }
 
+    // Read file and open crop dialog
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+      setCropDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle cropped image upload
+  const handleCroppedImage = async (croppedBlob: Blob) => {
+    if (!establishment) return;
+
+    setCropDialogOpen(false);
+    setImageToCrop(null);
     setUploadingLogo(true);
 
     try {
-      // Create file path: establishment_id/logo.ext
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${establishment.id}/logo.${fileExt}`;
+      // Create file path: establishment_id/logo.jpg
+      const filePath = `${establishment.id}/logo.jpg`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('establishment-logos')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, croppedBlob, { 
+          upsert: true,
+          contentType: 'image/jpeg'
+        });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL with cache buster
       const { data: { publicUrl } } = supabase.storage
         .from('establishment-logos')
         .getPublicUrl(filePath);
 
+      const urlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
+
       // Update establishment with new logo URL
       const { error: updateError } = await supabase
         .from('establishments')
-        .update({ logo_url: publicUrl })
+        .update({ logo_url: urlWithCacheBuster })
         .eq('id', establishment.id);
 
       if (updateError) throw updateError;
 
-      setLogoUrl(publicUrl);
+      setLogoUrl(urlWithCacheBuster);
       queryClient.invalidateQueries({ queryKey: ['user-establishment'] });
       toast({ title: 'Logo atualizado!' });
     } catch (err: any) {
@@ -151,10 +178,6 @@ export default function Configuracoes() {
       });
     } finally {
       setUploadingLogo(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
@@ -450,7 +473,7 @@ export default function Configuracoes() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={handleLogoUpload}
+                onChange={handleFileSelect}
                 className="hidden"
               />
               
@@ -639,6 +662,21 @@ export default function Configuracoes() {
         <Save className="h-4 w-4 mr-2" />
         {saving ? 'Salvando...' : 'Salvar Configurações'}
       </Button>
+
+      {/* Image Crop Dialog */}
+      {imageToCrop && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onClose={() => {
+            setCropDialogOpen(false);
+            setImageToCrop(null);
+          }}
+          imageSrc={imageToCrop}
+          onCropComplete={handleCroppedImage}
+          aspectRatio={1}
+          title="Recortar Logo"
+        />
+      )}
     </div>
   );
 }
