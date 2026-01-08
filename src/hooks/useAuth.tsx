@@ -38,24 +38,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle onboarding after OAuth login
+        // Only create establishment on initial SIGNED_IN (not on token refresh)
         if (event === 'SIGNED_IN' && session?.user) {
-          const userId = session.user.id;
-          
-          // Check if user already has an establishment
-          const { data: existing } = await supabase
-            .from('establishments')
-            .select('id')
-            .eq('owner_user_id', userId)
-            .maybeSingle();
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(async () => {
+            const userId = session.user.id;
+            
+            // Check if user already has ANY establishment (not just one)
+            const { data: existing, error: checkError } = await supabase
+              .from('establishments')
+              .select('id')
+              .eq('owner_user_id', userId)
+              .limit(1);
 
-          if (!existing) {
+            if (checkError) {
+              console.error('Error checking establishment:', checkError);
+              return;
+            }
+
+            // If user already has at least one establishment, skip creation
+            if (existing && existing.length > 0) {
+              return;
+            }
+
             // Get user metadata for company name
             const metadata = session.user.user_metadata;
             const companyName = metadata?.company_name || metadata?.full_name || session.user.email?.split('@')[0] || 'Meu Estabelecimento';
@@ -63,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
             // Create establishment
-            const { data: establishment } = await supabase
+            const { data: establishment, error: estError } = await supabase
               .from('establishments')
               .insert({
                 owner_user_id: userId,
@@ -82,43 +94,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select('id')
               .single();
 
-            if (establishment) {
-              // Create owner member
-              await supabase
-                .from('establishment_members')
-                .insert({
-                  establishment_id: establishment.id,
-                  user_id: userId,
-                  role: 'owner',
-                });
+            if (estError || !establishment) {
+              console.error('Error creating establishment:', estError);
+              return;
+            }
 
-              // Create default business hours (Mon-Sat 9-18)
-              const defaultHours = [];
-              for (let weekday = 1; weekday <= 6; weekday++) {
-                defaultHours.push({
-                  establishment_id: establishment.id,
-                  weekday,
-                  open_time: '09:00',
-                  close_time: '18:00',
-                  closed: false,
-                });
-              }
-              // Sunday closed
-              defaultHours.push({
+            // Create owner member
+            await supabase
+              .from('establishment_members')
+              .insert({
                 establishment_id: establishment.id,
-                weekday: 0,
-                open_time: null,
-                close_time: null,
-                closed: true,
+                user_id: userId,
+                role: 'owner',
               });
 
-              await supabase.from('business_hours').insert(defaultHours);
+            // Create default business hours (Mon-Sat 9-18)
+            const defaultHours = [];
+            for (let weekday = 1; weekday <= 6; weekday++) {
+              defaultHours.push({
+                establishment_id: establishment.id,
+                weekday,
+                open_time: '09:00',
+                close_time: '18:00',
+                closed: false,
+              });
             }
-          }
+            // Sunday closed
+            defaultHours.push({
+              establishment_id: establishment.id,
+              weekday: 0,
+              open_time: null,
+              close_time: null,
+              closed: true,
+            });
+
+            await supabase.from('business_hours').insert(defaultHours);
+          }, 0);
         }
       }
     );
 
+    // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
