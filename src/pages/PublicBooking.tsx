@@ -74,8 +74,29 @@ export default function PublicBooking() {
     }
   };
 
+  // Helper function to generate random token
+  const generateToken = (): string => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  // Helper function to hash token
+  const hashToken = async (token: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
   const handleSubmit = async (customerData: CustomerFormData) => {
     if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+      });
       return;
     }
 
@@ -88,20 +109,24 @@ export default function PublicBooking() {
         .select('id')
         .eq('establishment_id', establishment.id)
         .eq('phone', customerData.phone)
-        .single();
+        .maybeSingle();
 
       let customerId: string;
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
         // Update customer name/email if different
-        await supabase
+        const { error: updateError } = await supabase
           .from('customers')
           .update({
             name: customerData.name,
             email: customerData.email || null,
           })
           .eq('id', customerId);
+        
+        if (updateError) {
+          console.error('Customer update error:', updateError);
+        }
       } else {
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
@@ -114,7 +139,10 @@ export default function PublicBooking() {
           .select('id')
           .single();
 
-        if (customerError) throw customerError;
+        if (customerError) {
+          console.error('Customer creation error:', customerError);
+          throw new Error('Erro ao criar cadastro do cliente. Tente novamente.');
+        }
         customerId = newCustomer.id;
       }
 
@@ -127,7 +155,7 @@ export default function PublicBooking() {
       endAt.setMinutes(endAt.getMinutes() + selectedService.duration_minutes);
 
       // Create appointment
-      const { error: appointmentError } = await supabase
+      const { data: newAppointment, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
           establishment_id: establishment.id,
@@ -138,17 +166,42 @@ export default function PublicBooking() {
           end_at: endAt.toISOString(),
           status: establishment.auto_confirm_bookings ? 'confirmed' : 'booked',
           customer_notes: customerData.notes || null,
+        })
+        .select('id')
+        .single();
+
+      if (appointmentError) {
+        console.error('Appointment creation error:', appointmentError);
+        throw new Error('Erro ao criar agendamento. Tente novamente.');
+      }
+
+      // Generate management token for customer self-service
+      const token = generateToken();
+      const tokenHash = await hashToken(token);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30); // Token expires in 30 days
+
+      const { error: tokenError } = await supabase
+        .from('appointment_manage_tokens')
+        .insert({
+          appointment_id: newAppointment.id,
+          token_hash: tokenHash,
+          expires_at: expiresAt.toISOString(),
         });
 
-      if (appointmentError) throw appointmentError;
+      if (tokenError) {
+        console.error('Token creation error:', tokenError);
+        // Don't fail the booking if token creation fails - appointment was created successfully
+      }
 
       setIsSuccess(true);
     } catch (error) {
       console.error('Booking error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Não foi possível concluir o agendamento. Tente novamente.';
       toast({
         variant: 'destructive',
         title: 'Erro ao agendar',
-        description: 'Não foi possível concluir o agendamento. Tente novamente.',
+        description: errorMessage,
       });
     } finally {
       setIsSubmitting(false);
