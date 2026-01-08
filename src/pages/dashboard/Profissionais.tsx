@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, Upload, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, Upload, Loader2, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -139,6 +139,32 @@ export default function Profissionais() {
       setForm({ ...form, photo_url: tempUrl });
       // Store the blob for later upload
       (window as any).__pendingProfessionalPhotoBlob = croppedBlob;
+    }
+  };
+
+  // Handle photo removal
+  const handleRemovePhoto = async () => {
+    if (!editingId || !form.photo_url) return;
+
+    setUploadingPhoto(true);
+    try {
+      // Try to remove from storage
+      const urlParts = form.photo_url.split('/professional-photos/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1].split('?')[0]; // Remove cache buster
+        await supabase.storage
+          .from('professional-photos')
+          .remove([filePath]);
+      }
+
+      // Update professional to remove photo URL
+      await update({ id: editingId, photo_url: null });
+      setForm({ ...form, photo_url: null });
+      toast({ title: 'Foto removida!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover foto', description: err?.message, variant: 'destructive' });
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -371,20 +397,36 @@ export default function Profissionais() {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                >
-                  {uploadingPhoto ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4 mr-2" />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                  >
+                    {uploadingPhoto ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {form.photo_url ? 'Alterar' : 'Adicionar Foto'}
+                  </Button>
+                  
+                  {editingId && form.photo_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemovePhoto}
+                      disabled={uploadingPhoto}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remover
+                    </Button>
                   )}
-                  {form.photo_url ? 'Alterar Foto' : 'Adicionar Foto'}
-                </Button>
+                </div>
               </div>
             </div>
 
