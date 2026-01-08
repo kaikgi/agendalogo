@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -76,11 +77,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-sm">
+          <Avatar className="h-8 w-8 flex-shrink-0">
+            {establishment?.logo_url ? (
+              <AvatarImage src={establishment.logo_url} alt={establishment.name} />
+            ) : null}
+            <AvatarFallback className="bg-primary text-primary-foreground font-bold text-sm">
               {establishment?.name?.charAt(0).toUpperCase() || 'A'}
-            </span>
-          </div>
+            </AvatarFallback>
+          </Avatar>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-sm truncate">
