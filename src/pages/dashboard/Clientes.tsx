@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Search, User, Phone, Mail, Calendar, ChevronRight } from 'lucide-react';
+import { Search, User, Phone, Mail, Calendar, ChevronRight, RefreshCw } from 'lucide-react';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useCustomers, useCustomerWithAppointments } from '@/hooks/useCustomers';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -40,11 +42,16 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Clientes() {
-  const { data: establishment } = useUserEstablishment();
-  const { data: customers, isLoading } = useCustomers(establishment?.id);
+  const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
+  const { data: customers, isLoading, error, refetch } = useCustomers(establishment?.id);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { data: selectedCustomer } = useCustomerWithAppointments(selectedCustomerId ?? undefined);
+
+  const handleRetry = () => {
+    if (estError) refetchEst();
+    else refetch();
+  };
 
   const filteredCustomers = customers?.filter(
     (customer) =>
@@ -61,10 +68,34 @@ export default function Clientes() {
     }).format(cents / 100);
   };
 
+  // Loading state
+  if (estLoading || isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
+
+  // Error state
+  if (estError || error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">Erro ao carregar clientes</p>
+        <Button variant="outline" onClick={handleRetry}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+        <h1 className="text-2xl font-bold">Clientes</h1>
         <p className="text-muted-foreground">
           Visualize seus clientes e histórico de agendamentos
         </p>
@@ -80,13 +111,7 @@ export default function Clientes() {
         />
       </div>
 
-      {isLoading ? (
-        <Card>
-          <CardContent className="py-10">
-            <p className="text-center text-muted-foreground">Carregando clientes...</p>
-          </CardContent>
-        </Card>
-      ) : !filteredCustomers?.length ? (
+      {!filteredCustomers?.length ? (
         <Card>
           <CardContent className="py-10">
             <p className="text-center text-muted-foreground">
