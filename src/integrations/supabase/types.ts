@@ -726,6 +726,15 @@ export type Database = {
           manage_token: string
         }[]
       }
+      public_reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_new_end_at: string
+          p_new_start_at: string
+          p_token: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       appointment_event_type:

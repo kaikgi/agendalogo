@@ -24,12 +24,38 @@ interface AppointmentWithDetails {
   } | null;
 }
 
+interface RescheduleResult {
+  success: boolean;
+  appointment: {
+    id: string;
+    start_at: string;
+    end_at: string;
+    status: AppointmentStatus;
+    establishment_id: string;
+    professional_id: string;
+    customer_id: string;
+  };
+  message: string;
+}
+
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Invalidate all appointment-related queries after a change
+ * This ensures consistency across all views (dashboard, client, etc.)
+ */
+function invalidateAppointmentQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  // Invalidate all appointment-related queries
+  queryClient.invalidateQueries({ queryKey: ['appointment-by-token'] });
+  queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+  queryClient.invalidateQueries({ queryKey: ['available-slots'] });
 }
 
 export function useAppointmentByToken(slug: string | undefined, token: string | undefined) {
@@ -127,7 +153,8 @@ export function useCancelAppointment() {
         .eq('token_hash', tokenHash);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointment-by-token'] });
+      // Invalidate all relevant queries for consistency
+      invalidateAppointmentQueries(queryClient);
     },
   });
 }
@@ -146,39 +173,26 @@ export function useRescheduleAppointment() {
       token: string; 
       newStartAt: string; 
       newEndAt: string;
-    }) => {
-      const tokenHash = await hashToken(token);
+    }): Promise<RescheduleResult> => {
+      // Call the new transactional RPC for rescheduling
+      const { data, error } = await supabase.rpc('public_reschedule_appointment', {
+        p_token: token,
+        p_appointment_id: appointmentId,
+        p_new_start_at: newStartAt,
+        p_new_end_at: newEndAt,
+      });
 
-      // Verify token is valid
-      const { data: tokenRecord, error: tokenError } = await supabase
-        .from('appointment_manage_tokens')
-        .select('appointment_id, expires_at')
-        .eq('token_hash', tokenHash)
-        .eq('appointment_id', appointmentId)
-        .single();
-
-      if (tokenError || !tokenRecord) {
-        throw new Error('Token inválido');
+      if (error) {
+        // Extract error message from Postgres exception
+        const errorMessage = error.message.replace(/^.*EXCEPTION:\s*/, '').trim();
+        throw new Error(errorMessage || 'Erro ao reagendar');
       }
 
-      if (new Date(tokenRecord.expires_at) < new Date()) {
-        throw new Error('Este link expirou');
-      }
-
-      // Update appointment
-      const { error: updateError } = await supabase
-        .from('appointments')
-        .update({ 
-          start_at: newStartAt,
-          end_at: newEndAt,
-          status: 'booked'
-        })
-        .eq('id', appointmentId);
-
-      if (updateError) throw updateError;
+      return data as unknown as RescheduleResult;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointment-by-token'] });
+      // Invalidate all relevant queries for consistency across all views
+      invalidateAppointmentQueries(queryClient);
     },
   });
 }
