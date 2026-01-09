@@ -709,6 +709,23 @@ export type Database = {
     }
     Functions: {
       is_establishment_member: { Args: { est_id: string }; Returns: boolean }
+      public_create_appointment: {
+        Args: {
+          p_customer_email?: string
+          p_customer_name: string
+          p_customer_notes?: string
+          p_customer_phone: string
+          p_end_at: string
+          p_professional_id: string
+          p_service_id: string
+          p_slug: string
+          p_start_at: string
+        }
+        Returns: {
+          appointment_id: string
+          manage_token: string
+        }[]
+      }
     }
     Enums: {
       appointment_event_type:

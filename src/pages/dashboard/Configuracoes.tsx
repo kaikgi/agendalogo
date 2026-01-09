@@ -302,9 +302,12 @@ export default function Configuracoes() {
     }
   };
 
+  // Use production domain for public link
+  const PUBLIC_BASE_URL = 'https://agendalogo.lovable.app';
+
   const handleCopyLink = () => {
     if (!slug) return;
-    const link = `${window.location.origin}/${slug}`;
+    const link = `${PUBLIC_BASE_URL}/${slug}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({ title: 'Link copiado!' });
@@ -364,8 +367,8 @@ export default function Configuracoes() {
             <Label htmlFor="slug">Seu link personalizado</Label>
             <div className="flex gap-2">
               <div className="flex-1 flex items-center">
-                <span className="px-3 py-2 bg-muted rounded-l-md border border-r-0 text-sm text-muted-foreground">
-                  {window.location.origin}/
+              <span className="px-3 py-2 bg-muted rounded-l-md border border-r-0 text-sm text-muted-foreground whitespace-nowrap">
+                  {PUBLIC_BASE_URL}/
                 </span>
                 <Input
                   id="slug"
