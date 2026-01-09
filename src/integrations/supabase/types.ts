@@ -95,6 +95,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_notes: string | null
+          customer_user_id: string | null
           end_at: string
           establishment_id: string
           id: string
@@ -108,6 +109,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           customer_notes?: string | null
+          customer_user_id?: string | null
           end_at: string
           establishment_id: string
           id?: string
@@ -121,6 +123,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_notes?: string | null
+          customer_user_id?: string | null
           end_at?: string
           establishment_id?: string
           id?: string
@@ -376,6 +379,38 @@ export type Database = {
           },
         ]
       }
+      professional_portal_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          professional_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          professional_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          professional_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_portal_sessions_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professional_services: {
         Row: {
           professional_id: string
@@ -415,6 +450,10 @@ export type Database = {
           id: string
           name: string
           photo_url: string | null
+          portal_enabled: boolean | null
+          portal_last_login_at: string | null
+          portal_password_hash: string | null
+          slug: string | null
           user_id: string | null
         }
         Insert: {
@@ -425,6 +464,10 @@ export type Database = {
           id?: string
           name: string
           photo_url?: string | null
+          portal_enabled?: boolean | null
+          portal_last_login_at?: string | null
+          portal_password_hash?: string | null
+          slug?: string | null
           user_id?: string | null
         }
         Update: {
@@ -435,6 +478,10 @@ export type Database = {
           id?: string
           name?: string
           photo_url?: string | null
+          portal_enabled?: boolean | null
+          portal_last_login_at?: string | null
+          portal_password_hash?: string | null
+          slug?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -446,6 +493,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       public_rate_limits: {
         Row: {
@@ -708,24 +782,55 @@ export type Database = {
       }
     }
     Functions: {
-      is_establishment_member: { Args: { est_id: string }; Returns: boolean }
-      public_create_appointment: {
-        Args: {
-          p_customer_email?: string
-          p_customer_name: string
-          p_customer_notes?: string
-          p_customer_phone: string
-          p_end_at: string
-          p_professional_id: string
-          p_service_id: string
-          p_slug: string
-          p_start_at: string
-        }
-        Returns: {
-          appointment_id: string
-          manage_token: string
-        }[]
+      get_professional_appointments: {
+        Args: { p_end_date: string; p_start_date: string; p_token: string }
+        Returns: Json
       }
+      is_establishment_member: { Args: { est_id: string }; Returns: boolean }
+      professional_portal_login: {
+        Args: {
+          p_establishment_slug: string
+          p_password: string
+          p_professional_slug: string
+        }
+        Returns: Json
+      }
+      public_create_appointment:
+        | {
+            Args: {
+              p_customer_email?: string
+              p_customer_name: string
+              p_customer_notes?: string
+              p_customer_phone: string
+              p_end_at: string
+              p_professional_id: string
+              p_service_id: string
+              p_slug: string
+              p_start_at: string
+            }
+            Returns: {
+              appointment_id: string
+              manage_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_customer_email?: string
+              p_customer_name: string
+              p_customer_notes?: string
+              p_customer_phone: string
+              p_customer_user_id?: string
+              p_end_at: string
+              p_professional_id: string
+              p_service_id: string
+              p_slug: string
+              p_start_at: string
+            }
+            Returns: {
+              appointment_id: string
+              manage_token: string
+            }[]
+          }
       public_reschedule_appointment: {
         Args: {
           p_appointment_id: string
@@ -733,6 +838,14 @@ export type Database = {
           p_new_start_at: string
           p_token: string
         }
+        Returns: Json
+      }
+      set_professional_portal_password: {
+        Args: { p_password: string; p_professional_id: string }
+        Returns: Json
+      }
+      validate_professional_session: {
+        Args: { p_token: string }
         Returns: Json
       }
     }
