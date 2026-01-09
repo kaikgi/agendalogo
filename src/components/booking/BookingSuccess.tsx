@@ -1,9 +1,9 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle2, Calendar, Clock, User, Briefcase, Copy } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, User, Briefcase, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 interface BookingSuccessProps {
   serviceName: string;
@@ -22,12 +22,17 @@ export function BookingSuccess({
   establishmentName,
   manageUrl,
 }: BookingSuccessProps) {
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { session } = useAuth();
 
-  const handleCopyManageLink = async () => {
-    if (!manageUrl) return;
-    await navigator.clipboard.writeText(manageUrl);
-    toast({ title: 'Link copiado!' });
+  const handleGoToAppointments = () => {
+    if (session) {
+      // User is logged in, go directly to appointments
+      navigate('/client/appointments');
+    } else {
+      // User is not logged in, go to login with redirect
+      navigate('/client/login', { state: { from: '/client/appointments' } });
+    }
   };
 
   return (
@@ -62,25 +67,32 @@ export function BookingSuccess({
         </div>
       </div>
 
-      {manageUrl ? (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Seu link para gerenciar este agendamento:</p>
-          <div className="flex gap-2 max-w-sm mx-auto">
-            <Button type="button" variant="outline" className="flex-1 justify-start truncate" asChild>
-              <a href={manageUrl}>{manageUrl}</a>
-            </Button>
-            <Button type="button" variant="outline" onClick={handleCopyManageLink}>
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">Você pode gerenciar seu agendamento pelo link enviado.</p>
-      )}
+      {/* Primary and secondary actions */}
+      <div className="space-y-3 max-w-sm mx-auto">
+        <Button className="w-full" onClick={handleGoToAppointments}>
+          <Calendar className="w-4 h-4 mr-2" />
+          Ir para Meus Agendamentos
+        </Button>
+        
+        <Button asChild variant="outline" className="w-full">
+          <Link to="/">Voltar ao início</Link>
+        </Button>
+      </div>
 
-      <Button asChild variant="outline">
-        <Link to="/">Voltar ao início</Link>
-      </Button>
+      {/* Discrete manage link for users without account */}
+      {manageUrl && (
+        <div className="pt-4 border-t border-border max-w-sm mx-auto">
+          <p className="text-xs text-muted-foreground mb-2">
+            Precisa alterar este agendamento sem conta?
+          </p>
+          <Button variant="ghost" size="sm" asChild className="text-xs">
+            <a href={manageUrl} className="flex items-center gap-1">
+              <ExternalLink className="w-3 h-3" />
+              Clique aqui para gerenciar
+            </a>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

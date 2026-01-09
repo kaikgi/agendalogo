@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Copy, Check, Key, Link2 } from 'lucide-react';
+import { Eye, EyeOff, Copy, Check, Key } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useSetProfessionalPassword } from '@/hooks/useProfessionalPortal';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { getProfessionalPortalUrl } from '@/lib/publicUrl';
 
 interface ProfessionalPortalDialogProps {
   open: boolean;
@@ -47,7 +47,8 @@ export function ProfessionalPortalDialog({
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const portalUrl = `${window.location.origin}/${establishmentSlug}/p/${slug}`;
+  // Use the canonical public URL, never window.location.origin
+  const portalUrl = getProfessionalPortalUrl(establishmentSlug, slug);
 
   function generateSlug(name: string): string {
     return name

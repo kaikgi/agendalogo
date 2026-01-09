@@ -111,7 +111,10 @@ export function useUpdateAppointmentStatus() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate all appointment-related queries to ensure UI updates everywhere
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['client-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['client-appointments-month'] });
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
     },
   });
