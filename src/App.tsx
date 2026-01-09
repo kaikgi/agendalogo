@@ -28,6 +28,7 @@ import ClientAppointments from "./pages/client/ClientAppointments";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientHistory from "./pages/client/ClientHistory";
 import ClientLogin from "./pages/client/ClientLogin";
+import ClientSearch from "./pages/client/ClientSearch";
 import ProfessionalPortalLogin from "./pages/professional/ProfessionalPortalLogin";
 import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAgenda";
 
@@ -61,6 +62,7 @@ const App = () => (
               }
             >
               <Route index element={<ClientDashboard />} />
+              <Route path="search" element={<ClientSearch />} />
               <Route path="appointments" element={<ClientAppointments />} />
               <Route path="history" element={<ClientHistory />} />
               <Route path="profile" element={<ClientProfile />} />

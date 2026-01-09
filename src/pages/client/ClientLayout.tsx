@@ -6,7 +6,8 @@ import {
   User, 
   LogOut,
   Menu,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ import { Logo } from '@/components/Logo';
 
 const navItems = [
   { path: '/client', label: 'Visão Geral', icon: LayoutDashboard, exact: true },
+  { path: '/client/search', label: 'Buscar', icon: Search },
   { path: '/client/appointments', label: 'Meus Agendamentos', icon: Calendar },
   { path: '/client/history', label: 'Histórico', icon: History },
   { path: '/client/profile', label: 'Perfil', icon: User },
