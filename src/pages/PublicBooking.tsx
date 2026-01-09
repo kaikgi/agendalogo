@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, LogIn } from 'lucide-react';
 import { useEstablishment } from '@/hooks/useEstablishment';
 import { useServices, type Service } from '@/hooks/useServices';
 import { useProfessionalsByService, type Professional } from '@/hooks/useProfessionals';
@@ -16,8 +16,21 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerFormData } from '@/lib/validations/booking';
 import { getManageAppointmentUrl } from '@/lib/publicUrl';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const STEPS = ['Serviço', 'Profissional', 'Data/Hora', 'Dados'];
+const BOOKING_STORAGE_KEY = 'booking_state';
 
 type SupabaseLikeError = {
   message?: string;
@@ -33,9 +46,31 @@ function formatSupabaseError(err: unknown): string {
   return parts.length ? parts.join(' • ') : 'Erro desconhecido.';
 }
 
+interface BookingState {
+  serviceId?: string;
+  professionalId?: string;
+  date?: string;
+  time?: string;
+  step?: number;
+}
+
 export default function PublicBooking() {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
+
+  // Auth state
+  const { user, session, loading: isLoadingAuth } = useAuth();
+  const { profile, updateProfile } = useProfile();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupName, setSignupName] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authTab, setAuthTab] = useState<'login' | 'signup'>('login');
+  const [pendingCustomerData, setPendingCustomerData] = useState<CustomerFormData | null>(null);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -63,6 +98,14 @@ export default function PublicBooking() {
     slotIntervalMinutes: establishment?.slot_interval_minutes ?? 15,
     bufferMinutes: establishment?.buffer_minutes ?? 0,
   });
+
+  // After successful login, proceed with pending booking
+  useEffect(() => {
+    if (session && pendingCustomerData && !isSubmitting) {
+      // User just logged in with pending booking data
+      handleConfirmedSubmit(pendingCustomerData);
+    }
+  }, [session, pendingCustomerData]);
 
   const handleServiceSelect = (service: Service) => {
     setSelectedService(service);
@@ -95,33 +138,108 @@ export default function PublicBooking() {
     }
   };
 
-  // Token generation is now handled server-side by the RPC
-
-  const handleSubmit = async (customerData: CustomerFormData) => {
-    console.log('submit clicked', {
-      slug,
-      customerData,
-      selectedServiceId: selectedService?.id,
-      selectedProfessionalId: selectedProfessional?.id,
-      selectedDate,
-      selectedTime,
-    });
-
-    if (isSubmitting) return;
-
-    if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !slug) {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+      
+      if (error) throw error;
+      
+      setShowLoginModal(false);
+      toast({
+        title: 'Login realizado',
+        description: 'Você foi autenticado com sucesso.',
+      });
+    } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Campos incompletos',
-        description: 'Escolha serviço, profissional, data/hora e preencha seus dados.',
+        title: 'Erro no login',
+        description: error instanceof Error ? error.message : 'Email ou senha incorretos.',
       });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
+        options: {
+          emailRedirectTo: window.location.href,
+          data: {
+            full_name: signupName,
+          },
+        },
+      });
+      
+      if (error) throw error;
+      
+      // Create profile with phone number
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: signupName,
+          phone: signupPhone,
+        });
+      }
+      
+      setShowLoginModal(false);
+      toast({
+        title: 'Conta criada',
+        description: 'Sua conta foi criada com sucesso.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no cadastro',
+        description: error instanceof Error ? error.message : 'Não foi possível criar a conta.',
+      });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsAuthLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no login',
+        description: error instanceof Error ? error.message : 'Não foi possível fazer login com Google.',
+      });
+      setIsAuthLoading(false);
+    }
+  };
+
+  // Called after login to complete booking
+  const handleConfirmedSubmit = async (customerData: CustomerFormData) => {
+    if (isSubmitting) return;
+    if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !slug) {
       return;
     }
 
     setIsSubmitting(true);
+    setPendingCustomerData(null);
 
     try {
-      // Derive start/end timestamps
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const startAt = new Date(selectedDate);
       startAt.setHours(hours, minutes, 0, 0);
@@ -129,7 +247,9 @@ export default function PublicBooking() {
       const endAt = new Date(startAt);
       endAt.setMinutes(endAt.getMinutes() + selectedService.duration_minutes);
 
-      // Call the secure RPC that handles everything server-side
+      // Get current user ID for customer_user_id
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       const { data, error } = await supabase.rpc('public_create_appointment', {
         p_slug: slug,
         p_service_id: selectedService.id,
@@ -140,6 +260,7 @@ export default function PublicBooking() {
         p_customer_phone: customerData.phone,
         p_customer_email: customerData.email || null,
         p_customer_notes: customerData.notes || null,
+        p_customer_user_id: currentUser?.id || null,
       });
 
       if (error) {
@@ -147,7 +268,6 @@ export default function PublicBooking() {
         throw new Error(error.message || 'Erro ao criar agendamento');
       }
 
-      // RPC returns { appointment_id, manage_token }
       const result = data?.[0];
       if (result?.manage_token) {
         setManageToken(result.manage_token);
@@ -167,7 +287,48 @@ export default function PublicBooking() {
     }
   };
 
-  if (isLoadingEstablishment) {
+  const handleSubmit = async (customerData: CustomerFormData) => {
+    console.log('submit clicked', {
+      slug,
+      customerData,
+      selectedServiceId: selectedService?.id,
+      selectedProfessionalId: selectedProfessional?.id,
+      selectedDate,
+      selectedTime,
+      session: !!session,
+    });
+
+    if (isSubmitting) return;
+
+    if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !slug) {
+      toast({
+        variant: 'destructive',
+        title: 'Campos incompletos',
+        description: 'Escolha serviço, profissional, data/hora e preencha seus dados.',
+      });
+      return;
+    }
+
+    // Check if user is logged in
+    if (!session) {
+      // Save pending data and show login modal
+      setPendingCustomerData(customerData);
+      setShowLoginModal(true);
+      
+      // Pre-fill signup form with customer data
+      setSignupName(customerData.name);
+      setSignupPhone(customerData.phone);
+      if (customerData.email) {
+        setSignupEmail(customerData.email);
+      }
+      return;
+    }
+
+    // User is logged in, proceed with booking
+    await handleConfirmedSubmit(customerData);
+  };
+
+  if (isLoadingEstablishment || isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -189,7 +350,6 @@ export default function PublicBooking() {
     );
   }
 
-  // Use single source of truth for manage URL
   if (isSuccess && selectedService && selectedProfessional && selectedDate && selectedTime) {
     const manageUrl = manageToken && establishment.slug
       ? getManageAppointmentUrl(establishment.slug, manageToken)
@@ -215,19 +375,34 @@ export default function PublicBooking() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="container max-w-lg mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            {establishment.logo_url && (
-              <img
-                src={establishment.logo_url}
-                alt={establishment.name}
-                className="w-10 h-10 rounded-full object-cover"
-                loading="lazy"
-              />
-            )}
-            <div>
-              <h1 className="font-bold">{establishment.name}</h1>
-              <p className="text-sm text-muted-foreground">Agendamento online</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {establishment.logo_url && (
+                <img
+                  src={establishment.logo_url}
+                  alt={establishment.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div>
+                <h1 className="font-bold">{establishment.name}</h1>
+                <p className="text-sm text-muted-foreground">Agendamento online</p>
+              </div>
             </div>
+            {session ? (
+              <div className="text-sm text-muted-foreground">
+                <span className="hidden sm:inline">Olá, </span>
+                <span className="font-medium text-foreground">
+                  {profile?.full_name || user?.email?.split('@')[0] || 'Cliente'}
+                </span>
+              </div>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setShowLoginModal(true)}>
+                <LogIn className="w-4 h-4 mr-2" />
+                Entrar
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -272,9 +447,199 @@ export default function PublicBooking() {
         )}
 
         {currentStep === 3 && (
-          <CustomerStep establishment={establishment} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <CustomerStep 
+            establishment={establishment} 
+            onSubmit={handleSubmit} 
+            isSubmitting={isSubmitting}
+            defaultValues={
+              profile ? {
+                name: profile.full_name || '',
+                phone: profile.phone || '',
+                email: user?.email || '',
+              } : undefined
+            }
+          />
         )}
       </main>
+
+      {/* Login Modal */}
+      <Dialog open={showLoginModal} onOpenChange={setShowLoginModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="w-5 h-5" />
+              Faça login para continuar
+            </DialogTitle>
+            <DialogDescription>
+              Para confirmar seu agendamento, você precisa estar logado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'signup')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Entrar</TabsTrigger>
+              <TabsTrigger value="signup">Criar conta</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login" className="space-y-4 mt-4">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Senha</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                  {isAuthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Entrar
+                </Button>
+              </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">ou</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleLogin}
+                disabled={isAuthLoading}
+              >
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                Continuar com Google
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="signup" className="space-y-4 mt-4">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Nome completo *</Label>
+                  <Input
+                    id="signup-name"
+                    placeholder="Seu nome"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-phone">Telefone *</Label>
+                  <Input
+                    id="signup-phone"
+                    placeholder="(99) 99999-9999"
+                    value={signupPhone}
+                    onChange={(e) => setSignupPhone(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email *</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Senha *</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                  {isAuthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Criar conta e agendar
+                </Button>
+              </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">ou</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleLogin}
+                disabled={isAuthLoading}
+              >
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                Cadastrar com Google
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
