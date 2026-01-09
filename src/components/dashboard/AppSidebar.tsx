@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { getPublicUrl, PUBLIC_BASE_URL } from '@/lib/publicUrl';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -66,7 +67,8 @@ export function AppSidebar() {
     e.stopPropagation();
     if (!establishment?.slug) return;
     
-    const link = `${window.location.origin}/${establishment.slug}`;
+    // Use single source of truth for public URL
+    const link = getPublicUrl(establishment.slug);
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({ title: 'Link copiado!' });
@@ -131,7 +133,7 @@ export function AppSidebar() {
                       className="flex-1"
                     >
                       <a
-                        href={`/${establishment.slug}`}
+                        href={getPublicUrl(establishment.slug)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground hover:text-foreground"
