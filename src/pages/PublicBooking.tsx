@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerFormData } from '@/lib/validations/booking';
+import { getManageAppointmentUrl } from '@/lib/publicUrl';
 
 const STEPS = ['Serviço', 'Profissional', 'Data/Hora', 'Dados'];
 
@@ -94,19 +95,7 @@ export default function PublicBooking() {
     }
   };
 
-  const generateToken = (): string => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
-  };
-
-  const hashToken = async (token: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-  };
+  // Token generation is now handled server-side by the RPC
 
   const handleSubmit = async (customerData: CustomerFormData) => {
     console.log('submit clicked', {
@@ -200,12 +189,10 @@ export default function PublicBooking() {
     );
   }
 
-  // Use production domain for manage URL
-  const PUBLIC_BASE_URL = 'https://agendalogo.lovable.app';
-
+  // Use single source of truth for manage URL
   if (isSuccess && selectedService && selectedProfessional && selectedDate && selectedTime) {
-    const manageUrl = manageToken
-      ? `${PUBLIC_BASE_URL}/${establishment.slug}/gerenciar/${manageToken}`
+    const manageUrl = manageToken && establishment.slug
+      ? getManageAppointmentUrl(establishment.slug, manageToken)
       : null;
 
     return (

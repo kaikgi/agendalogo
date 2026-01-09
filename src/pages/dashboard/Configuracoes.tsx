@@ -12,6 +12,7 @@ import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { getPublicUrl, PUBLIC_BASE_URL } from '@/lib/publicUrl';
 
 // Reserved slugs that cannot be used
 const RESERVED_SLUGS = ['app', 'dashboard', 'login', 'entrar', 'criar-conta', 'signup', 'api', 'admin', 'settings', 'configuracoes', 'agenda', 'profissionais', 'servicos', 'clientes', 'horarios', 'bloqueios'];
@@ -302,12 +303,10 @@ export default function Configuracoes() {
     }
   };
 
-  // Use production domain for public link
-  const PUBLIC_BASE_URL = 'https://agendalogo.lovable.app';
-
+  // Use single source of truth for public link
   const handleCopyLink = () => {
     if (!slug) return;
-    const link = `${PUBLIC_BASE_URL}/${slug}`;
+    const link = getPublicUrl(slug);
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({ title: 'Link copiado!' });
