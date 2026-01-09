@@ -28,6 +28,8 @@ import ClientAppointments from "./pages/client/ClientAppointments";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientHistory from "./pages/client/ClientHistory";
 import ClientLogin from "./pages/client/ClientLogin";
+import ProfessionalPortalLogin from "./pages/professional/ProfessionalPortalLogin";
+import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAgenda";
 
 const queryClient = new QueryClient();
 
@@ -83,7 +85,11 @@ const App = () => (
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
             
-            {/* Public routes */}
+            {/* Professional Portal */}
+            <Route path="/:establishmentSlug/p/:professionalSlug" element={<ProfessionalPortalLogin />} />
+            <Route path="/:establishmentSlug/p/:professionalSlug/agenda" element={<ProfessionalPortalAgenda />} />
+            
+            {/* Public routes - MUST be last to avoid conflicts */}
             <Route path="/:slug" element={<PublicBooking />} />
             <Route path="/:slug/gerenciar/:token" element={<ManageAppointment />} />
             <Route path="*" element={<NotFound />} />
