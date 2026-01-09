@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Clock, Scissors, RefreshCw, X, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfessionalHoursDialog } from '@/components/dashboard/ProfessionalHoursDialog';
 import { ProfessionalServicesDialog } from '@/components/dashboard/ProfessionalServicesDialog';
+import { ProfessionalPortalDialog } from '@/components/dashboard/ProfessionalPortalDialog';
 
 interface ProfessionalForm {
   name: string;
@@ -48,9 +49,10 @@ export default function Profissionais() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [servicesDialogOpen, setServicesDialogOpen] = useState(false);
+  const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string; slug: string | null; portal_enabled: boolean | null } | null>(null);
   const [form, setForm] = useState<ProfessionalForm>({ name: '', capacity: 1, photo_url: null });
   
   // Photo upload state
@@ -291,9 +293,30 @@ export default function Profissionais() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Portal"
+                      onClick={() => {
+                        setSelectedProfessional({ 
+                          id: prof.id, 
+                          name: prof.name, 
+                          slug: (prof as any).slug || null,
+                          portal_enabled: (prof as any).portal_enabled ?? false
+                        });
+                        setPortalDialogOpen(true);
+                      }}
+                    >
+                      <Key className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       title="Serviços"
                       onClick={() => {
-                        setSelectedProfessional({ id: prof.id, name: prof.name });
+                        setSelectedProfessional({ 
+                          id: prof.id, 
+                          name: prof.name, 
+                          slug: (prof as any).slug || null,
+                          portal_enabled: (prof as any).portal_enabled ?? false
+                        });
                         setServicesDialogOpen(true);
                       }}
                     >
@@ -304,7 +327,12 @@ export default function Profissionais() {
                       size="icon"
                       title="Horários"
                       onClick={() => {
-                        setSelectedProfessional({ id: prof.id, name: prof.name });
+                        setSelectedProfessional({ 
+                          id: prof.id, 
+                          name: prof.name, 
+                          slug: (prof as any).slug || null,
+                          portal_enabled: (prof as any).portal_enabled ?? false
+                        });
                         setHoursDialogOpen(true);
                       }}
                     >
@@ -457,6 +485,17 @@ export default function Profissionais() {
           professionalId={selectedProfessional.id}
           professionalName={selectedProfessional.name}
           establishmentId={establishment.id}
+        />
+      )}
+
+      {/* Professional Portal Dialog */}
+      {selectedProfessional && establishment && (
+        <ProfessionalPortalDialog
+          open={portalDialogOpen}
+          onOpenChange={setPortalDialogOpen}
+          professional={selectedProfessional}
+          establishmentSlug={establishment.slug}
+          onUpdate={update}
         />
       )}
     </div>

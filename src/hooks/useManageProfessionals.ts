@@ -8,6 +8,9 @@ interface Professional {
   active: boolean;
   capacity: number;
   created_at: string;
+  slug: string | null;
+  portal_enabled: boolean | null;
+  portal_last_login_at: string | null;
 }
 
 interface CreateProfessionalData {
@@ -15,6 +18,7 @@ interface CreateProfessionalData {
   name: string;
   photo_url?: string;
   capacity?: number;
+  slug?: string;
 }
 
 export function useManageProfessionals(establishmentId: string | undefined) {
