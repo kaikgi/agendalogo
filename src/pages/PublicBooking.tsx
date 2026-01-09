@@ -120,7 +120,7 @@ export default function PublicBooking() {
 
     if (isSubmitting) return;
 
-    if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime) {
+    if (!establishment || !selectedService || !selectedProfessional || !selectedDate || !selectedTime || !slug) {
       toast({
         variant: 'destructive',
         title: 'Campos incompletos',
@@ -132,7 +132,7 @@ export default function PublicBooking() {
     setIsSubmitting(true);
 
     try {
-      // 1) Derive start/end
+      // Derive start/end timestamps
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const startAt = new Date(selectedDate);
       startAt.setHours(hours, minutes, 0, 0);
@@ -140,136 +140,30 @@ export default function PublicBooking() {
       const endAt = new Date(startAt);
       endAt.setMinutes(endAt.getMinutes() + selectedService.duration_minutes);
 
-      const startIso = startAt.toISOString();
-      const endIso = endAt.toISOString();
-
-      // 2) Create or find customer
-      const { data: existingCustomer, error: existingCustomerError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('establishment_id', establishment.id)
-        .eq('phone', customerData.phone)
-        .maybeSingle();
-
-      if (existingCustomerError) {
-        console.log('customers select error', existingCustomerError);
-        throw new Error(`Erro ao consultar cliente: ${formatSupabaseError(existingCustomerError)}`);
-      }
-
-      let customerId: string;
-
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({
-            name: customerData.name,
-            email: customerData.email || null,
-          })
-          .eq('id', customerId);
-
-        if (updateError) {
-          console.log('customers update error', updateError);
-          // não bloqueia o agendamento
-        }
-      } else {
-        const { data: newCustomer, error: customerError } = await supabase
-          .from('customers')
-          .insert({
-            establishment_id: establishment.id,
-            name: customerData.name,
-            phone: customerData.phone,
-            email: customerData.email || null,
-          })
-          .select('id')
-          .single();
-
-        if (customerError) {
-          console.log('customers insert error', customerError);
-          throw new Error(`Erro ao criar cliente: ${formatSupabaseError(customerError)}`);
-        }
-
-        customerId = newCustomer.id;
-      }
-
-      // 3) Re-check availability (avoid race conditions)
-      const { data: overlappingAppointments, error: overlapAppointmentsError } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('establishment_id', establishment.id)
-        .eq('professional_id', selectedProfessional.id)
-        .in('status', ['booked', 'confirmed'])
-        .lt('start_at', endIso)
-        .gt('end_at', startIso)
-        .limit(1);
-
-      if (overlapAppointmentsError) {
-        console.log('appointments overlap check error', overlapAppointmentsError);
-        throw new Error(`Erro ao checar disponibilidade: ${formatSupabaseError(overlapAppointmentsError)}`);
-      }
-
-      if (overlappingAppointments && overlappingAppointments.length > 0) {
-        throw new Error('Este horário acabou de ser reservado. Escolha outro horário.');
-      }
-
-      const { data: overlappingBlocks, error: overlapBlocksError } = await supabase
-        .from('time_blocks')
-        .select('id')
-        .eq('establishment_id', establishment.id)
-        .or(`professional_id.is.null,professional_id.eq.${selectedProfessional.id}`)
-        .lt('start_at', endIso)
-        .gt('end_at', startIso)
-        .limit(1);
-
-      if (overlapBlocksError) {
-        console.log('time_blocks overlap check error', overlapBlocksError);
-        throw new Error(`Erro ao checar bloqueios: ${formatSupabaseError(overlapBlocksError)}`);
-      }
-
-      if (overlappingBlocks && overlappingBlocks.length > 0) {
-        throw new Error('Este horário está bloqueado. Escolha outro horário.');
-      }
-
-      // 4) Create appointment
-      const { data: newAppointment, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert({
-          establishment_id: establishment.id,
-          professional_id: selectedProfessional.id,
-          service_id: selectedService.id,
-          customer_id: customerId,
-          start_at: startIso,
-          end_at: endIso,
-          status: establishment.auto_confirm_bookings ? 'confirmed' : 'booked',
-          customer_notes: customerData.notes || null,
-        })
-        .select('id')
-        .single();
-
-      if (appointmentError) {
-        console.log('appointments insert error', appointmentError);
-        throw new Error(`Erro ao criar agendamento: ${formatSupabaseError(appointmentError)}`);
-      }
-
-      // 5) Generate management token
-      const token = generateToken();
-      const tokenHash = await hashToken(token);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
-      const { error: tokenError } = await supabase.from('appointment_manage_tokens').insert({
-        appointment_id: newAppointment.id,
-        token_hash: tokenHash,
-        expires_at: expiresAt.toISOString(),
+      // Call the secure RPC that handles everything server-side
+      const { data, error } = await supabase.rpc('public_create_appointment', {
+        p_slug: slug,
+        p_service_id: selectedService.id,
+        p_professional_id: selectedProfessional.id,
+        p_start_at: startAt.toISOString(),
+        p_end_at: endAt.toISOString(),
+        p_customer_name: customerData.name,
+        p_customer_phone: customerData.phone,
+        p_customer_email: customerData.email || null,
+        p_customer_notes: customerData.notes || null,
       });
 
-      if (tokenError) {
-        console.log('appointment_manage_tokens insert error', tokenError);
-        // não bloqueia confirmação (agendamento já existe)
+      if (error) {
+        console.log('RPC error:', error);
+        throw new Error(error.message || 'Erro ao criar agendamento');
       }
 
-      setManageToken(token);
+      // RPC returns { appointment_id, manage_token }
+      const result = data?.[0];
+      if (result?.manage_token) {
+        setManageToken(result.manage_token);
+      }
+
       setIsSuccess(true);
     } catch (error) {
       console.log('Booking error (raw):', error);
@@ -306,9 +200,12 @@ export default function PublicBooking() {
     );
   }
 
+  // Use production domain for manage URL
+  const PUBLIC_BASE_URL = 'https://agendalogo.lovable.app';
+
   if (isSuccess && selectedService && selectedProfessional && selectedDate && selectedTime) {
     const manageUrl = manageToken
-      ? `${window.location.origin}/${establishment.slug}/gerenciar/${manageToken}`
+      ? `${PUBLIC_BASE_URL}/${establishment.slug}/gerenciar/${manageToken}`
       : null;
 
     return (
