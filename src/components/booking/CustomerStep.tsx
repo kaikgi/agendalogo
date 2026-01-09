@@ -13,9 +13,14 @@ interface CustomerStepProps {
   establishment: Establishment;
   onSubmit: (data: CustomerFormData) => Promise<void>;
   isSubmitting: boolean;
+  defaultValues?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
-export function CustomerStep({ establishment, onSubmit, isSubmitting }: CustomerStepProps) {
+export function CustomerStep({ establishment, onSubmit, isSubmitting, defaultValues }: CustomerStepProps) {
   const {
     register,
     handleSubmit,
@@ -32,9 +37,9 @@ export function CustomerStep({ establishment, onSubmit, isSubmitting }: Customer
         : customerFormSchema
     ),
     defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
+      name: defaultValues?.name || '',
+      phone: defaultValues?.phone || '',
+      email: defaultValues?.email || '',
       notes: '',
       acceptPolicy: false,
     },
