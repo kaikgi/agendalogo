@@ -782,6 +782,14 @@ export type Database = {
       }
     }
     Functions: {
+      client_reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_new_end_at: string
+          p_new_start_at: string
+        }
+        Returns: Json
+      }
       get_professional_appointments: {
         Args: { p_end_date: string; p_start_date: string; p_token: string }
         Returns: Json

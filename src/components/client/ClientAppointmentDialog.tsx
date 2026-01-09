@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Clock, MapPin, Phone, User, Building2, Loader2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Phone, User, Building2, Loader2, CalendarClock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useCancelClientAppointment, type ClientAppointment } from '@/hooks/useClientAppointments';
-import { getPublicUrl } from '@/lib/publicUrl';
+import { ClientRescheduleDialog } from './ClientRescheduleDialog';
 
 interface ClientAppointmentDialogProps {
   appointment: ClientAppointment | null;
@@ -50,6 +50,7 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | '
 
 export function ClientAppointmentDialog({ appointment, open, onOpenChange }: ClientAppointmentDialogProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const { toast } = useToast();
   const cancelMutation = useCancelClientAppointment();
 
@@ -190,8 +191,9 @@ export function ClientAppointmentDialog({ appointment, open, onOpenChange }: Cli
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => window.open(getPublicUrl(appointment.establishment.slug), '_blank')}
+                  onClick={() => setRescheduleDialogOpen(true)}
                 >
+                  <CalendarClock className="h-4 w-4 mr-2" />
                   Reagendar
                 </Button>
                 <Button
@@ -206,6 +208,14 @@ export function ClientAppointmentDialog({ appointment, open, onOpenChange }: Cli
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reschedule Dialog */}
+      <ClientRescheduleDialog
+        appointment={appointment}
+        open={rescheduleDialogOpen}
+        onOpenChange={setRescheduleDialogOpen}
+        onSuccess={() => onOpenChange(false)}
+      />
 
       {/* Cancel Confirmation */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
