@@ -74,8 +74,15 @@ export function AppointmentDetailsDialog({ open, onOpenChange, appointment }: Ap
     try {
       await updateStatus({ id: appointment.id, status: newStatus });
       toast({ title: 'Status atualizado com sucesso!' });
-    } catch {
-      toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
+      // Auto-close modal on success
+      onOpenChange(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({ 
+        title: 'Erro ao atualizar status', 
+        description: errorMessage,
+        variant: 'destructive' 
+      });
     }
   };
 

@@ -24,6 +24,7 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useCancelClientAppointment, type ClientAppointment } from '@/hooks/useClientAppointments';
+import { getPublicUrl } from '@/lib/publicUrl';
 
 interface ClientAppointmentDialogProps {
   appointment: ClientAppointment | null;
@@ -189,7 +190,7 @@ export function ClientAppointmentDialog({ appointment, open, onOpenChange }: Cli
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => window.open(`/${appointment.establishment.slug}`, '_blank')}
+                  onClick={() => window.open(getPublicUrl(appointment.establishment.slug), '_blank')}
                 >
                   Reagendar
                 </Button>

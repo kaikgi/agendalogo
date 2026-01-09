@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -39,13 +40,14 @@ interface UseClientAppointmentsFilters {
 
 export function useClientAppointments(filters?: UseClientAppointmentsFilters) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['client-appointments', user?.id, filters],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      let query = supabase
+      let queryBuilder = supabase
         .from('appointments')
         .select(`
           id,
@@ -61,24 +63,55 @@ export function useClientAppointments(filters?: UseClientAppointmentsFilters) {
         .order('start_at', { ascending: false });
 
       if (filters?.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status);
+        queryBuilder = queryBuilder.eq('status', filters.status);
       }
 
       if (filters?.startDate) {
-        query = query.gte('start_at', filters.startDate.toISOString());
+        queryBuilder = queryBuilder.gte('start_at', filters.startDate.toISOString());
       }
 
       if (filters?.endDate) {
-        query = query.lte('start_at', filters.endDate.toISOString());
+        queryBuilder = queryBuilder.lte('start_at', filters.endDate.toISOString());
       }
 
-      const { data, error } = await query;
+      const { data, error } = await queryBuilder;
 
       if (error) throw error;
       return data as unknown as ClientAppointment[];
     },
     enabled: !!user?.id,
   });
+
+  // Set up realtime subscription for client appointments
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('client-appointments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `customer_user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Client appointment change detected:', payload);
+          
+          // Invalidate queries to refetch data
+          queryClient.invalidateQueries({ queryKey: ['client-appointments'] });
+          queryClient.invalidateQueries({ queryKey: ['client-appointments-month'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
+  return query;
 }
 
 export function useClientAppointmentsByMonth(year: number, month: number) {
@@ -131,8 +164,11 @@ export function useCancelClientAppointment() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate all appointment-related queries to update all panels
       queryClient.invalidateQueries({ queryKey: ['client-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['client-appointments-month'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['metrics'] });
     },
   });
 }

@@ -20,7 +20,9 @@ export default function ClientLogin() {
   const location = useLocation();
   const { toast } = useToast();
 
-  const from = (location.state as any)?.from?.pathname || '/client';
+  // Support both object state and string state for redirect
+  const stateFrom = (location.state as any)?.from;
+  const from = typeof stateFrom === 'string' ? stateFrom : stateFrom?.pathname || '/client';
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
