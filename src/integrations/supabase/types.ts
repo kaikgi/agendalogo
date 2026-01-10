@@ -786,6 +786,7 @@ export type Database = {
         Args: {
           p_appointment_id: string
           p_new_end_at: string
+          p_new_professional_id?: string
           p_new_start_at: string
         }
         Returns: Json
