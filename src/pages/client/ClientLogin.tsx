@@ -92,7 +92,10 @@ export default function ClientLogin() {
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
-          Não tem conta? <Link to="/cliente/cadastro" className="text-primary hover:underline">Criar conta</Link>
+          Não tem conta?{' '}
+          <Link to="/cliente/cadastro" state={{ from }} className="text-primary hover:underline">
+            Criar conta
+          </Link>
         </p>
       </div>
     </div>

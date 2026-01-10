@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ClientProtectedRoute } from "@/components/ClientProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -28,6 +29,7 @@ import ClientAppointments from "./pages/client/ClientAppointments";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientHistory from "./pages/client/ClientHistory";
 import ClientLogin from "./pages/client/ClientLogin";
+import ClientSignup from "./pages/client/ClientSignup";
 import ClientSearch from "./pages/client/ClientSearch";
 import ProfessionalPortalLogin from "./pages/professional/ProfessionalPortalLogin";
 import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAgenda";
@@ -35,7 +37,8 @@ import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAge
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -49,8 +52,11 @@ const App = () => (
             <Route path="/criar-conta" element={<Signup />} />
             <Route path="/esqueci-senha" element={<ForgotPassword />} />
             
-            {/* Client Login */}
+            {/* Client Login & Signup */}
             <Route path="/cliente/login" element={<ClientLogin />} />
+            <Route path="/cliente/cadastro" element={<ClientSignup />} />
+            <Route path="/client/login" element={<ClientLogin />} />
+            <Route path="/client/signup" element={<ClientSignup />} />
             
             {/* Client Portal (protected) */}
             <Route
@@ -100,6 +106,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
