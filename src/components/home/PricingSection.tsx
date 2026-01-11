@@ -76,25 +76,25 @@ export function PricingSection() {
         </div>
 
         {/* Pricing cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
           {plans.map((plan) => (
             <div
               key={plan.name}
               className={cn(
-                "relative rounded-2xl border p-8 transition-premium",
+                "relative rounded-2xl border p-6 transition-premium flex flex-col h-full",
                 plan.popular
-                  ? "bg-primary text-primary-foreground border-primary shadow-strong scale-[1.02]"
+                  ? "bg-primary text-primary-foreground border-primary shadow-strong"
                   : "bg-card border-border hover:border-foreground/20 hover:shadow-elegant"
               )}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-background text-foreground text-xs font-semibold">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-background text-foreground text-xs font-semibold whitespace-nowrap z-10">
                   Mais popular
                 </div>
               )}
 
-              {/* Plan header */}
-              <div className="mb-6">
+              {/* Plan header - fixed height */}
+              <div className="min-h-[72px]">
                 <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
                 <p className={cn(
                   "text-body-sm",
@@ -104,8 +104,8 @@ export function PricingSection() {
                 </p>
               </div>
 
-              {/* Price */}
-              <div className="mb-6">
+              {/* Price - fixed height */}
+              <div className="min-h-[80px] mt-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm">R$</span>
                   <span className="text-display-md">{plan.price}</span>
@@ -124,8 +124,8 @@ export function PricingSection() {
                 </p>
               </div>
 
-              {/* Features */}
-              <ul className="space-y-3 mb-8">
+              {/* Features - flex-1 to push button down */}
+              <ul className="flex-1 space-y-3 mt-6">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3 text-body-sm">
                     <Check 
@@ -140,18 +140,20 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              {/* CTA */}
-              <Button
-                variant={plan.popular ? "secondary" : "default"}
-                size="lg"
-                className="w-full"
-                asChild
-              >
-                <Link to={`/cadastro?plano=${plan.planCode}`}>
-                  {plan.cta}
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
+              {/* CTA - always at bottom */}
+              <div className="mt-auto pt-6">
+                <Button
+                  variant={plan.popular ? "secondary" : "default"}
+                  size="lg"
+                  className="w-full"
+                  asChild
+                >
+                  <Link to={`/cadastro?plano=${plan.planCode}`}>
+                    {plan.cta}
+                    <ArrowRight size={16} />
+                  </Link>
+                </Button>
+              </div>
             </div>
           ))}
         </div>
