@@ -28,11 +28,6 @@ export function Footer() {
                   Preços
                 </Link>
               </li>
-              <li>
-                <Link to="/integracoes" className="text-body-sm text-muted-foreground hover:text-foreground transition-premium">
-                  Integrações
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -48,11 +43,6 @@ export function Footer() {
               <li>
                 <Link to="/contato" className="text-body-sm text-muted-foreground hover:text-foreground transition-premium">
                   Contato
-                </Link>
-              </li>
-              <li>
-                <Link to="/blog" className="text-body-sm text-muted-foreground hover:text-foreground transition-premium">
-                  Blog
                 </Link>
               </li>
             </ul>
@@ -78,7 +68,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-body-sm text-muted-foreground">
-            © {new Date().getFullYear()} AgendaI. Todos os direitos reservados.
+            © {new Date().getFullYear()} Agendali. Todos os direitos reservados.
           </p>
           <p className="text-body-sm text-muted-foreground">
             Feito com ♥ no Brasil

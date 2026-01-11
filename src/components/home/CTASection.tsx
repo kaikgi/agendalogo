@@ -11,23 +11,13 @@ export function CTASection() {
             Pronto para transformar seus agendamentos?
           </h2>
           <p className="text-body-lg text-primary-foreground/80 mb-8">
-            Junte-se a milhares de profissionais que já simplificaram sua rotina com AgendaI.
+            Junte-se a milhares de profissionais que já simplificaram sua rotina com Agendali.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button variant="secondary" size="xl" asChild>
-              <Link to="/cadastro">
-                Começar grátis
+              <Link to="/precos">
+                Começar agora
                 <ArrowRight size={18} />
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="xl" 
-              className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-              asChild
-            >
-              <Link to="/demo">
-                Ver demonstração
               </Link>
             </Button>
           </div>

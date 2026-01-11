@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Calendar, Clock, Users } from "lucide-react";
+import { ArrowRight, Calendar, Clock, Users } from "lucide-react";
 
 import professional1 from "@/assets/avatars/professional-1.jpg";
 import professional2 from "@/assets/avatars/professional-2.jpg";
@@ -33,7 +33,7 @@ export function HeroSection() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-body-sm text-muted-foreground">
-                Novo: Confirmação automática via WhatsApp
+                Novo: Confirmação automática via E-mail
               </span>
             </div>
 
@@ -52,15 +52,9 @@ export function HeroSection() {
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Button variant="hero" size="xl" asChild>
-                <Link to="/cadastro">
-                  Começar grátis
+                <Link to="/precos">
+                  Começar agora
                   <ArrowRight size={18} />
-                </Link>
-              </Button>
-              <Button variant="outline" size="xl" asChild>
-                <Link to="/demo">
-                  <Play size={18} />
-                  Ver demonstração
                 </Link>
               </Button>
             </div>
@@ -78,7 +72,7 @@ export function HeroSection() {
                 ))}
               </div>
               <div className="text-body-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">2.500+</span> profissionais confiam na AgendaI
+                <span className="font-semibold text-foreground">2.500+</span> profissionais confiam na Agendali
               </div>
             </div>
           </div>
@@ -92,7 +86,7 @@ export function HeroSection() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold">Studio Elegance</h3>
-                    <p className="text-body-sm text-muted-foreground">agendai.com.br/studio-elegance</p>
+                    <p className="text-body-sm text-muted-foreground">agendali.online/studio-elegance</p>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                     <Calendar className="text-primary-foreground" size={24} />
