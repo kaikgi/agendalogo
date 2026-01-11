@@ -25,7 +25,7 @@ const plans = [
   {
     name: "Essencial",
     description: "Para pequenos negócios",
-    price: "49",
+    price: "49,90",
     period: "/mês",
     professionals: "Até 3 profissionais",
     features: [
@@ -41,7 +41,7 @@ const plans = [
   {
     name: "Studio",
     description: "Para estúdios e equipes em crescimento",
-    price: "99",
+    price: "99,90",
     period: "/mês",
     professionals: "Até 10 profissionais",
     features: [
