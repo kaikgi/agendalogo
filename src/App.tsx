@@ -14,6 +14,12 @@ import ForgotPassword from "./pages/ForgotPassword";
 import PublicBooking from "./pages/PublicBooking";
 import ManageAppointment from "./pages/ManageAppointment";
 import NotFound from "./pages/NotFound";
+import Recursos from "./pages/Recursos";
+import Precos from "./pages/Precos";
+import Sobre from "./pages/Sobre";
+import Contato from "./pages/Contato";
+import Termos from "./pages/Termos";
+import Privacidade from "./pages/Privacidade";
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import Agenda from "./pages/dashboard/Agenda";
@@ -36,6 +42,24 @@ import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAge
 
 const queryClient = new QueryClient();
 
+// Reserved routes that should NOT be treated as establishment slugs
+const RESERVED_ROUTES = [
+  'recursos',
+  'precos',
+  'sobre',
+  'contato',
+  'termos',
+  'privacidade',
+  'login',
+  'entrar',
+  'cadastro',
+  'criar-conta',
+  'esqueci-senha',
+  'dashboard',
+  'client',
+  'cliente',
+];
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -45,7 +69,18 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Home */}
             <Route path="/" element={<Index />} />
+            
+            {/* Institutional pages - MUST be before :slug route */}
+            <Route path="/recursos" element={<Recursos />} />
+            <Route path="/precos" element={<Precos />} />
+            <Route path="/sobre" element={<Sobre />} />
+            <Route path="/contato" element={<Contato />} />
+            <Route path="/termos" element={<Termos />} />
+            <Route path="/privacidade" element={<Privacidade />} />
+            
+            {/* Auth pages */}
             <Route path="/login" element={<Login />} />
             <Route path="/entrar" element={<Login />} />
             <Route path="/cadastro" element={<Signup />} />
@@ -97,9 +132,11 @@ const App = () => (
             <Route path="/:establishmentSlug/p/:professionalSlug" element={<ProfessionalPortalLogin />} />
             <Route path="/:establishmentSlug/p/:professionalSlug/agenda" element={<ProfessionalPortalAgenda />} />
             
-            {/* Public routes - MUST be last to avoid conflicts */}
+            {/* Public booking routes - MUST be last to avoid conflicts with institutional pages */}
             <Route path="/:slug" element={<PublicBooking />} />
             <Route path="/:slug/gerenciar/:token" element={<ManageAppointment />} />
+            
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

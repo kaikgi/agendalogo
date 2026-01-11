@@ -5,21 +5,38 @@ import { cn } from "@/lib/utils";
 
 const plans = [
   {
+    name: "Básico",
+    description: "Para profissionais autônomos",
+    price: "19,90",
+    period: "/mês",
+    professionals: "1 profissional",
+    features: [
+      "50 agendamentos/mês",
+      "Página de agendamento personalizada",
+      "Lembretes por E-mail",
+      "Self-service para clientes",
+      "Dashboard de métricas",
+      "Suporte por E-mail",
+    ],
+    cta: "Escolher plano",
+    popular: false,
+    planCode: "basic",
+  },
+  {
     name: "Essencial",
-    description: "Para profissionais autônomos e pequenos negócios",
+    description: "Para pequenos negócios",
     price: "49",
     period: "/mês",
     professionals: "Até 3 profissionais",
     features: [
-      "Página de agendamento personalizada",
-      "Agendamentos ilimitados",
-      "Lembretes por WhatsApp",
-      "Self-service para clientes",
-      "Dashboard de métricas",
-      "Suporte por email",
+      "120 agendamentos/mês",
+      "Tudo do plano Básico",
+      "Múltiplos profissionais",
+      "Gestão de equipe",
     ],
-    cta: "Começar grátis",
+    cta: "Escolher plano",
     popular: false,
+    planCode: "essential",
   },
   {
     name: "Studio",
@@ -28,21 +45,22 @@ const plans = [
     period: "/mês",
     professionals: "Até 10 profissionais",
     features: [
+      "Agendamentos ilimitados",
       "Tudo do plano Essencial",
       "Múltiplos estabelecimentos",
-      "API para integrações",
       "Relatórios avançados",
       "Domínio personalizado",
       "Suporte prioritário",
     ],
-    cta: "Começar grátis",
+    cta: "Escolher plano",
     popular: true,
+    planCode: "studio",
   },
 ];
 
 export function PricingSection() {
   return (
-    <section className="py-24 md:py-32">
+    <section id="precos" className="py-24 md:py-32">
       <div className="container">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
@@ -53,12 +71,12 @@ export function PricingSection() {
             Planos simples, sem surpresas
           </h2>
           <p className="text-body-lg text-muted-foreground">
-            Comece grátis por 14 dias. Sem cartão de crédito.
+            Assine e comece a usar imediatamente.
           </p>
         </div>
 
         {/* Pricing cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -129,7 +147,7 @@ export function PricingSection() {
                 className="w-full"
                 asChild
               >
-                <Link to="/cadastro">
+                <Link to={`/cadastro?plano=${plan.planCode}`}>
                   {plan.cta}
                   <ArrowRight size={16} />
                 </Link>

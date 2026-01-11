@@ -35,6 +35,12 @@ export function Header() {
           >
             Sobre
           </Link>
+          <Link 
+            to="/contato" 
+            className="text-body-sm text-muted-foreground hover:text-foreground transition-premium animate-underline"
+          >
+            Contato
+          </Link>
         </nav>
 
         {/* Desktop CTAs */}
@@ -43,7 +49,7 @@ export function Header() {
             <Link to="/login">Entrar</Link>
           </Button>
           <Button variant="default" size="sm" asChild>
-            <Link to="/cadastro">Começar grátis</Link>
+            <Link to="/precos">Começar agora</Link>
           </Button>
         </div>
 
@@ -61,7 +67,7 @@ export function Header() {
       {/* Mobile Menu */}
       <div className={cn(
         "md:hidden glass border-t border-border/50 overflow-hidden transition-all duration-300",
-        mobileMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+        mobileMenuOpen ? "max-h-80 opacity-100" : "max-h-0 opacity-0"
       )}>
         <nav className="container py-4 flex flex-col gap-4">
           <Link 
@@ -85,12 +91,19 @@ export function Header() {
           >
             Sobre
           </Link>
+          <Link 
+            to="/contato" 
+            className="text-body-md text-muted-foreground hover:text-foreground transition-premium"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Contato
+          </Link>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" size="sm" className="flex-1" asChild>
               <Link to="/login">Entrar</Link>
             </Button>
             <Button variant="default" size="sm" className="flex-1" asChild>
-              <Link to="/cadastro">Começar grátis</Link>
+              <Link to="/precos">Começar agora</Link>
             </Button>
           </div>
         </nav>

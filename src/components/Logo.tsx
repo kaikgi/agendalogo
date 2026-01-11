@@ -27,7 +27,7 @@ export function Logo({ className, size = "md", showText = true }: LogoProps) {
       </div>
       {showText && (
         <span className={cn("font-display font-bold tracking-tight", sizes[size].text)}>
-          Agenda<span className="text-muted-foreground">I</span>
+          Agenda<span className="text-muted-foreground">li</span>
         </span>
       )}
     </div>

@@ -344,6 +344,42 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          allow_multi_establishments: boolean
+          code: string
+          created_at: string
+          features: Json
+          id: string
+          max_appointments_month: number
+          max_professionals: number
+          name: string
+          price_cents: number
+        }
+        Insert: {
+          allow_multi_establishments?: boolean
+          code: string
+          created_at?: string
+          features?: Json
+          id?: string
+          max_appointments_month?: number
+          max_professionals?: number
+          name: string
+          price_cents: number
+        }
+        Update: {
+          allow_multi_establishments?: boolean
+          code?: string
+          created_at?: string
+          features?: Json
+          id?: string
+          max_appointments_month?: number
+          max_professionals?: number
+          name?: string
+          price_cents?: number
+        }
+        Relationships: []
+      }
       professional_hours: {
         Row: {
           closed: boolean
@@ -640,6 +676,53 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          external_id: string | null
+          external_provider: string | null
+          id: string
+          owner_user_id: string
+          plan_code: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          external_id?: string | null
+          external_provider?: string | null
+          id?: string
+          owner_user_id: string
+          plan_code: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          external_id?: string | null
+          external_provider?: string | null
+          id?: string
+          owner_user_id?: string
+          plan_code?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_code_fkey"
+            columns: ["plan_code"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       time_blocks: {
         Row: {
           created_at: string
@@ -782,6 +865,15 @@ export type Database = {
       }
     }
     Functions: {
+      can_create_appointment: {
+        Args: { p_establishment_id: string }
+        Returns: Json
+      }
+      can_create_establishment: { Args: { p_owner_id: string }; Returns: Json }
+      can_create_professional: {
+        Args: { p_establishment_id: string }
+        Returns: Json
+      }
       client_reschedule_appointment: {
         Args: {
           p_appointment_id: string
@@ -793,6 +885,10 @@ export type Database = {
       }
       get_professional_appointments: {
         Args: { p_end_date: string; p_start_date: string; p_token: string }
+        Returns: Json
+      }
+      get_subscription_usage: {
+        Args: { p_establishment_id: string }
         Returns: Json
       }
       is_establishment_member: { Args: { est_id: string }; Returns: boolean }

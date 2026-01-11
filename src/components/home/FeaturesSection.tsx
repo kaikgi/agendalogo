@@ -2,7 +2,7 @@ import {
   Calendar, 
   Clock, 
   Users, 
-  Bell, 
+  Mail, 
   Shield, 
   Smartphone,
   BarChart3,
@@ -49,11 +49,11 @@ const features: Feature[] = [
     ]
   },
   {
-    icon: Bell,
+    icon: Mail,
     title: "Lembretes automáticos",
-    description: "Reduza faltas com lembretes via WhatsApp. Confirmação e cancelamento com um clique.",
+    description: "Reduza faltas com lembretes via E-mail. Confirmação e cancelamento com um clique.",
     details: [
-      "Notificações via WhatsApp",
+      "Notificações via E-mail",
       "Confirmação de presença",
       "Redução de no-shows"
     ]
@@ -102,7 +102,7 @@ const features: Feature[] = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-24 md:py-32 bg-secondary/30">
+    <section id="recursos" className="py-24 md:py-32 bg-secondary/30">
       <div className="container">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-20">

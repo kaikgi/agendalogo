@@ -2,21 +2,33 @@
  * Single source of truth for public URL generation.
  * Used across the entire application.
  * 
- * IMPORTANT: Never use window.location.origin for public links.
- * Always use these functions to ensure links work in production.
+ * IMPORTANT: Always use these functions to ensure links work in production.
  */
 
 // Production base URL - the canonical domain for public links
-// This is the ONLY place where the base URL should be defined
-export const PUBLIC_BASE_URL = 'https://agendalogo.lovable.app';
+const PRODUCTION_DOMAIN = 'agendali.online';
 
 /**
  * Returns the public base URL for the application.
- * Use this instead of window.location.origin for any public-facing links.
+ * In production: uses agendali.online
+ * In dev/preview: uses window.location.origin
  */
 export function getPublicBaseUrl(): string {
-  return PUBLIC_BASE_URL;
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If we're on the production domain, use https
+    if (hostname === PRODUCTION_DOMAIN || hostname === `www.${PRODUCTION_DOMAIN}`) {
+      return `https://${PRODUCTION_DOMAIN}`;
+    }
+    // For localhost or preview deployments, use current origin
+    return window.location.origin;
+  }
+  // Fallback for SSR or non-browser environments
+  return `https://${PRODUCTION_DOMAIN}`;
 }
+
+// Legacy export for compatibility
+export const PUBLIC_BASE_URL = `https://${PRODUCTION_DOMAIN}`;
 
 /**
  * Builds a public URL by appending a path to the base URL.
@@ -25,8 +37,9 @@ export function getPublicBaseUrl(): string {
  * @returns The full public URL
  */
 export function buildPublicUrl(path: string): string {
+  const baseUrl = getPublicBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${PUBLIC_BASE_URL}${normalizedPath}`;
+  return `${baseUrl}${normalizedPath}`;
 }
 
 /**
@@ -35,7 +48,7 @@ export function buildPublicUrl(path: string): string {
  * @returns The full public URL for the establishment's booking page
  */
 export function getPublicUrl(slug: string): string {
-  return `${PUBLIC_BASE_URL}/${slug}`;
+  return `${getPublicBaseUrl()}/${slug}`;
 }
 
 /**
@@ -45,7 +58,7 @@ export function getPublicUrl(slug: string): string {
  * @returns The full URL for managing the appointment
  */
 export function getManageAppointmentUrl(slug: string, token: string): string {
-  return `${PUBLIC_BASE_URL}/${slug}/gerenciar/${token}`;
+  return `${getPublicBaseUrl()}/${slug}/gerenciar/${token}`;
 }
 
 /**
@@ -55,7 +68,7 @@ export function getManageAppointmentUrl(slug: string, token: string): string {
  * @returns The full public URL for the professional's portal login
  */
 export function getProfessionalPortalUrl(establishmentSlug: string, professionalSlug: string): string {
-  return `${PUBLIC_BASE_URL}/${establishmentSlug}/p/${professionalSlug}`;
+  return `${getPublicBaseUrl()}/${establishmentSlug}/p/${professionalSlug}`;
 }
 
 /**
@@ -63,5 +76,5 @@ export function getProfessionalPortalUrl(establishmentSlug: string, professional
  * @returns The full public URL for the client's appointments page
  */
 export function getClientAppointmentsUrl(): string {
-  return `${PUBLIC_BASE_URL}/client/appointments`;
+  return `${getPublicBaseUrl()}/client/appointments`;
 }
