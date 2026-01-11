@@ -28,11 +28,14 @@ import { Switch } from '@/components/ui/switch';
 import { ImageUploadButton } from '@/components/ImageUploadButton';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
+import { useSubscriptionUsage, useCanCreateProfessional } from '@/hooks/useSubscriptionUsage';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfessionalHoursDialog } from '@/components/dashboard/ProfessionalHoursDialog';
 import { ProfessionalServicesDialog } from '@/components/dashboard/ProfessionalServicesDialog';
 import { ProfessionalPortalDialog } from '@/components/dashboard/ProfessionalPortalDialog';
+import { UpgradePlanDialog } from '@/components/dashboard/UpgradePlanDialog';
+import { UsageBadge } from '@/components/dashboard/UsageBadge';
 
 interface ProfessionalForm {
   name: string;
@@ -43,6 +46,8 @@ interface ProfessionalForm {
 export default function Profissionais() {
   const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
   const { professionals, isLoading, error, refetch, create, update, delete: deleteProfessional, isCreating, isUpdating } = useManageProfessionals(establishment?.id);
+  const { data: usage } = useSubscriptionUsage(establishment?.id);
+  const { data: canCreate } = useCanCreateProfessional(establishment?.id);
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,6 +55,7 @@ export default function Profissionais() {
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [servicesDialogOpen, setServicesDialogOpen] = useState(false);
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedProfessional, setSelectedProfessional] = useState<{ id: string; name: string; slug: string | null; portal_enabled: boolean | null } | null>(null);
@@ -64,6 +70,11 @@ export default function Profissionais() {
   };
 
   const handleOpenCreate = () => {
+    // Check if can create professional
+    if (canCreate && !canCreate.allowed) {
+      setUpgradeDialogOpen(true);
+      return;
+    }
     setEditingId(null);
     setForm({ name: '', capacity: 1, photo_url: null });
     setDialogOpen(true);
@@ -233,13 +244,28 @@ export default function Profissionais() {
           <p className="text-muted-foreground">
             Gerencie os profissionais do seu estabelecimento
           </p>
+          {usage && (
+            <div className="mt-2 w-48">
+              <UsageBadge
+                current={usage.current_professionals}
+                max={usage.max_professionals}
+                label="Profissionais"
+              />
+            </div>
+          )}
         </div>
 
-        <Button onClick={handleOpenCreate}>
+        <Button onClick={handleOpenCreate} disabled={canCreate && !canCreate.allowed}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Profissional
         </Button>
       </div>
+
+      <UpgradePlanDialog
+        open={upgradeDialogOpen}
+        onOpenChange={setUpgradeDialogOpen}
+        feature="professionals"
+      />
 
       {professionals.length === 0 ? (
         <Card>
