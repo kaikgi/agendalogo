@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, LogIn } from 'lucide-react';
+import { ArrowLeft, Loader2, LogIn, AlertCircle } from 'lucide-react';
 import { useEstablishment } from '@/hooks/useEstablishment';
 import { useServices, type Service } from '@/hooks/useServices';
 import { useProfessionalsByService, type Professional } from '@/hooks/useProfessionals';
@@ -18,6 +18,8 @@ import type { CustomerFormData } from '@/lib/validations/booking';
 import { getManageAppointmentUrl } from '@/lib/publicUrl';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useCanCreateAppointment } from '@/hooks/useSubscriptionUsage';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -86,6 +88,7 @@ export default function PublicBooking() {
     isLoading: isLoadingEstablishment,
     error: establishmentError,
   } = useEstablishment(slug);
+  const { data: canCreateAppointment } = useCanCreateAppointment(establishment?.id);
   const { data: services = [] } = useServices(establishment?.id);
   const { data: professionals = [], isLoading: isLoadingProfessionals } = useProfessionalsByService(
     selectedService?.id
@@ -98,6 +101,8 @@ export default function PublicBooking() {
     slotIntervalMinutes: establishment?.slot_interval_minutes ?? 15,
     bufferMinutes: establishment?.buffer_minutes ?? 0,
   });
+
+  const isAppointmentBlocked = canCreateAppointment && !canCreateAppointment.allowed;
 
   // After successful login, proceed with pending booking
   useEffect(() => {
@@ -346,6 +351,29 @@ export default function PublicBooking() {
         <Button asChild variant="outline">
           <Link to="/">Voltar ao início</Link>
         </Button>
+      </div>
+    );
+  }
+
+  // Show friendly message if establishment has exceeded appointment limit
+  if (isAppointmentBlocked) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-lg mx-auto px-4 py-8">
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Agendamento temporariamente indisponível</AlertTitle>
+            <AlertDescription>
+              Este estabelecimento atingiu o limite de agendamentos do mês.
+              Por favor, tente novamente no próximo mês ou entre em contato diretamente com o estabelecimento.
+            </AlertDescription>
+          </Alert>
+          <div className="text-center">
+            <Button asChild variant="outline">
+              <Link to="/">Voltar ao início</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
