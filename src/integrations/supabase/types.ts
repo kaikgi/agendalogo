@@ -349,33 +349,39 @@ export type Database = {
           allow_multi_establishments: boolean
           code: string
           created_at: string
+          description: string | null
           features: Json
           id: string
           max_appointments_month: number
           max_professionals: number
           name: string
+          popular: boolean
           price_cents: number
         }
         Insert: {
           allow_multi_establishments?: boolean
           code: string
           created_at?: string
+          description?: string | null
           features?: Json
           id?: string
           max_appointments_month?: number
           max_professionals?: number
           name: string
+          popular?: boolean
           price_cents: number
         }
         Update: {
           allow_multi_establishments?: boolean
           code?: string
           created_at?: string
+          description?: string | null
           features?: Json
           id?: string
           max_appointments_month?: number
           max_professionals?: number
           name?: string
+          popular?: boolean
           price_cents?: number
         }
         Relationships: []
