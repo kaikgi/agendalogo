@@ -5,11 +5,13 @@ export interface Plan {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   price_cents: number;
   max_professionals: number;
   max_appointments_month: number;
   allow_multi_establishments: boolean;
   features: string[];
+  popular: boolean;
 }
 
 export function usePlans() {
@@ -33,4 +35,11 @@ export function formatPriceBRL(cents: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+export function getProfessionalsLabel(maxProfessionals: number): string {
+  if (maxProfessionals === 1) {
+    return "1 profissional";
+  }
+  return `Até ${maxProfessionals} profissionais`;
 }
