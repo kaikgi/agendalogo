@@ -18,7 +18,8 @@ import type { CustomerFormData } from '@/lib/validations/booking';
 import { getManageAppointmentUrl } from '@/lib/publicUrl';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { useCanCreateAppointment } from '@/hooks/useSubscriptionUsage';
+import { useCanEstablishmentAcceptBookings } from '@/hooks/useSubscription';
+import { PlanLimitAlert } from '@/components/billing/PlanLimitAlert';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Dialog,
@@ -88,7 +89,7 @@ export default function PublicBooking() {
     isLoading: isLoadingEstablishment,
     error: establishmentError,
   } = useEstablishment(slug);
-  const { data: canCreateAppointment } = useCanCreateAppointment(establishment?.id);
+  const { data: canAcceptBookings, isLoading: isLoadingCanAccept } = useCanEstablishmentAcceptBookings(establishment?.id);
   const { data: services = [] } = useServices(establishment?.id);
   const { data: professionals = [], isLoading: isLoadingProfessionals } = useProfessionalsByService(
     selectedService?.id
@@ -102,7 +103,7 @@ export default function PublicBooking() {
     bufferMinutes: establishment?.buffer_minutes ?? 0,
   });
 
-  const isAppointmentBlocked = canCreateAppointment && !canCreateAppointment.allowed;
+  const isAppointmentBlocked = canAcceptBookings && !canAcceptBookings.can_accept;
 
   // After successful login, proceed with pending booking
   useEffect(() => {
@@ -333,7 +334,7 @@ export default function PublicBooking() {
     await handleConfirmedSubmit(customerData);
   };
 
-  if (isLoadingEstablishment || isLoadingAuth) {
+  if (isLoadingEstablishment || isLoadingAuth || isLoadingCanAccept) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -357,18 +358,36 @@ export default function PublicBooking() {
 
   // Show friendly message if establishment has exceeded appointment limit
   if (isAppointmentBlocked) {
+    const blockReason = canAcceptBookings?.error_code === 'APPOINTMENT_LIMIT_REACHED' 
+      ? 'Este estabelecimento atingiu o limite de agendamentos do mês. Por favor, tente novamente no próximo mês ou entre em contato diretamente com o estabelecimento.'
+      : canAcceptBookings?.reason || 'Agendamento temporariamente indisponível.';
+
     return (
       <div className="min-h-screen bg-background">
+        <header className="border-b border-border">
+          <div className="container max-w-lg mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              {establishment.logo_url && (
+                <img
+                  src={establishment.logo_url}
+                  alt={establishment.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div>
+                <h1 className="font-bold">{establishment.name}</h1>
+                <p className="text-sm text-muted-foreground">Agendamento online</p>
+              </div>
+            </div>
+          </div>
+        </header>
         <div className="container max-w-lg mx-auto px-4 py-8">
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Agendamento temporariamente indisponível</AlertTitle>
-            <AlertDescription>
-              Este estabelecimento atingiu o limite de agendamentos do mês.
-              Por favor, tente novamente no próximo mês ou entre em contato diretamente com o estabelecimento.
-            </AlertDescription>
-          </Alert>
-          <div className="text-center">
+          <PlanLimitAlert 
+            title="Agendamento temporariamente indisponível"
+            description={blockReason}
+          />
+          <div className="text-center mt-4">
             <Button asChild variant="outline">
               <Link to="/">Voltar ao início</Link>
             </Button>
