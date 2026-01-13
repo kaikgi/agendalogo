@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Check, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, ArrowRight, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlans, formatPriceBRL, getProfessionalsLabel } from "@/hooks/usePlans";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { getKiwifyCheckoutUrl } from "@/lib/kiwifyCheckout";
+import { useAuth } from "@/hooks/useAuth";
 function PricingCardSkeleton() {
   return (
     <div className="rounded-2xl border p-6 bg-card border-border flex flex-col h-full">
@@ -30,6 +30,7 @@ function PricingCardSkeleton() {
 
 export function PricingSection() {
   const { data: plans, isLoading } = usePlans();
+  const { user } = useAuth();
 
   return (
     <section id="precos" className="py-24 md:py-32">
@@ -127,10 +128,14 @@ export function PricingSection() {
                     className="w-full"
                     asChild
                   >
-                    <Link to={`/cadastro?plano=${plan.code}`}>
+                    <a 
+                      href={getKiwifyCheckoutUrl(plan.code, user?.id, user?.email || undefined)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Escolher plano
-                      <ArrowRight size={16} />
-                    </Link>
+                      <ExternalLink size={14} className="ml-1" />
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -142,9 +147,9 @@ export function PricingSection() {
         <div className="text-center mt-12">
           <p className="text-body-md text-muted-foreground">
             Precisa de mais?{" "}
-            <Link to="/contato" className="text-foreground font-medium animate-underline">
+            <a href="https://www.agendali.online/contato" className="text-foreground font-medium animate-underline">
               Fale com nosso time
-            </Link>
+            </a>
           </p>
         </div>
       </div>

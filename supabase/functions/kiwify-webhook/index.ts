@@ -17,29 +17,97 @@ const KIWIFY_EVENTS = {
   SUBSCRIPTION_CANCELED: 'subscription_canceled',
 } as const
 
-// Map Kiwify product IDs to our plan codes
+// Map Kiwify checkout URLs to plan codes
+// These are the product IDs from the Kiwify checkouts
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  // Configure your Kiwify product IDs here
+  // Map by product_id (from Kiwify payload)
+  'ee404462-1c75-40a6-a914-651bee84a42f': 'basic', // Update with real Kiwify product IDs
 }
 
+// Map plan names/product names to plan codes (fallback)
+function detectPlanFromProductName(productName: string): string {
+  const name = productName.toLowerCase()
+  if (name.includes('studio')) return 'studio'
+  if (name.includes('essencial') || name.includes('essential')) return 'essential'
+  if (name.includes('básico') || name.includes('basic') || name.includes('basico')) return 'basic'
+  return 'basic' // Default to basic
+}
+
+// Kiwify Webhook Payload structure (actual from their API)
 interface KiwifyWebhookPayload {
+  // Root level fields
   order_id?: string
   order_ref?: string
-  product_id?: string
-  product_name?: string
+  order_status?: string
   subscription_id?: string
-  subscription_status?: string
-  customer_email?: string
-  customer_name?: string
-  customer_phone?: string
   payment_method?: string
-  payment_status?: string
-  price?: number
   installments?: number
+  card_type?: string
+  card_last4digits?: string
   created_at?: string
+  updated_at?: string
   approved_date?: string
-  refunded_date?: string
+  refunded_at?: string
+  access_url?: string
+  store_id?: string
+  product_type?: string
+  sale_type?: string
   webhook_event_type?: string
+
+  // Nested Customer object (Kiwify uses PascalCase)
+  Customer?: {
+    email?: string
+    full_name?: string
+    first_name?: string
+    mobile?: string
+    ip?: string
+    city?: string
+    state?: string
+    street?: string
+    neighborhood?: string
+    number?: string
+    complement?: string
+    zipcode?: string
+    cnpj?: string
+    instagram?: string
+  }
+
+  // Nested Product object
+  Product?: {
+    product_id?: string
+    product_name?: string
+  }
+
+  // Nested Subscription object
+  Subscription?: {
+    id?: string
+    status?: string
+    start_date?: string
+    next_payment?: string
+    plan?: {
+      id?: string
+      name?: string
+      frequency?: string
+      qty_charges?: number
+    }
+    charges?: {
+      completed?: Array<{
+        order_id?: string
+        amount?: number
+        status?: string
+        created_at?: string
+        installments?: number
+        card_type?: string
+        card_first_digits?: string
+        card_last_digits?: string
+      }>
+      future?: Array<{
+        charge_date?: string
+      }>
+    }
+  }
+
+  // Nested TrackingParameters (for user_id passthrough)
   TrackingParameters?: {
     src?: string
     utm_source?: string
@@ -47,9 +115,40 @@ interface KiwifyWebhookPayload {
     utm_campaign?: string
     utm_content?: string
     utm_term?: string
+    s1?: string
+    s2?: string
+    s3?: string
+    sck?: string
+    // Custom params we can add to checkout URL
     user_id?: string
     establishment_id?: string
   }
+
+  // Nested Commissions
+  Commissions?: {
+    charge_amount?: number
+    currency?: string
+    product_base_price?: number
+    kiwify_fee?: number
+    my_commission?: number
+    settlement_amount?: number
+    commissioned_stores?: Array<{
+      id?: string
+      email?: string
+      type?: string
+      value?: number
+      custom_name?: string
+      affiliate_id?: string
+    }>
+  }
+
+  // Legacy flat fields (some Kiwify payloads might still use these)
+  customer_email?: string
+  customer_name?: string
+  customer_phone?: string
+  product_id?: string
+  product_name?: string
+  price?: number
 }
 
 serve(async (req) => {
@@ -67,7 +166,12 @@ serve(async (req) => {
   if (method === 'GET') {
     console.log('[KIWIFY] Health check requested')
     return new Response(
-      JSON.stringify({ ok: true, timestamp: new Date().toISOString() }),
+      JSON.stringify({ 
+        ok: true, 
+        timestamp: new Date().toISOString(),
+        version: '2.1.0',
+        message: 'Kiwify webhook endpoint is ready'
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -121,16 +225,26 @@ serve(async (req) => {
       )
     }
 
+    // Extract customer email - try nested Customer object first (Kiwify's actual structure)
+    const customerEmail = payload.Customer?.email || payload.customer_email
+    const customerName = payload.Customer?.full_name || payload.customer_name
+    const productId = payload.Product?.product_id || payload.product_id
+    const productName = payload.Product?.product_name || payload.product_name
+
     console.log('[KIWIFY] Payload received:', JSON.stringify({
       event: payload.webhook_event_type,
       order_id: payload.order_id,
-      product_name: payload.product_name,
-      customer_email: payload.customer_email,
+      product_id: productId,
+      product_name: productName,
+      customer_email: customerEmail,
+      customer_name: customerName,
+      subscription_id: payload.subscription_id || payload.Subscription?.id,
+      subscription_status: payload.Subscription?.status,
     }))
 
     // Extract event info
     const eventType = payload.webhook_event_type || 'unknown'
-    const eventId = payload.order_id || payload.subscription_id || crypto.randomUUID()
+    const eventId = payload.order_id || payload.subscription_id || payload.Subscription?.id || crypto.randomUUID()
 
     // Create Supabase client with service role (bypass RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -216,16 +330,17 @@ async function processKiwifyEvent(
   payload: KiwifyWebhookPayload,
   eventType: string
 ) {
-  const buyerEmail = payload.customer_email?.toLowerCase()
+  // Extract customer email from nested structure
+  const buyerEmail = (payload.Customer?.email || payload.customer_email)?.toLowerCase()
   if (!buyerEmail) {
-    throw new Error('No customer email in payload')
+    throw new Error('No customer email in payload (checked Customer.email and customer_email)')
   }
 
-  // Try to find user by metadata first, then by email
+  // Try to find user by tracking metadata first, then by email
   let userId: string | null = null
   
-  // Priority 1: Check tracking parameters for user_id
-  const trackingUserId = payload.TrackingParameters?.user_id
+  // Priority 1: Check tracking parameters for user_id (passed via checkout URL)
+  const trackingUserId = payload.TrackingParameters?.user_id || payload.TrackingParameters?.s1
   if (trackingUserId) {
     // Verify user exists
     const { data: profile } = await supabase
@@ -236,13 +351,12 @@ async function processKiwifyEvent(
     
     if (profile) {
       userId = profile.id as string
-      console.log('Found user by tracking metadata:', userId)
+      console.log('[KIWIFY] Found user by tracking metadata:', userId)
     }
   }
 
-  // Priority 2: Find by email in auth.users (via profiles)
+  // Priority 2: Find by email in auth.users
   if (!userId) {
-    // We need to search by email - query auth.users through the admin API
     const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
     
     if (!authError && authUsers?.users) {
@@ -251,33 +365,32 @@ async function processKiwifyEvent(
       )
       if (matchingUser) {
         userId = matchingUser.id
-        console.log('Found user by email:', userId)
+        console.log('[KIWIFY] Found user by email:', userId)
       }
     }
   }
 
-  // If no user found, log and create pending record
+  // If no user found, log warning but continue
   if (!userId) {
-    console.log('No user found for email:', buyerEmail)
-    // We'll still create/update the subscription with null user_id
-    // This allows the user to claim it when they sign up with the same email
+    console.log('[KIWIFY] WARNING: No user found for email:', buyerEmail)
+    console.log('[KIWIFY] The subscription will be linked when user signs up with this email')
   }
 
   // Determine plan from product
+  const productId = payload.Product?.product_id || payload.product_id
+  const productName = payload.Product?.product_name || payload.product_name || ''
+  const planName = payload.Subscription?.plan?.name || ''
+  
   let planCode = 'basic'
   
-  // Try to map product to plan
-  const productId = payload.product_id
-  const productName = payload.product_name?.toLowerCase() || ''
-  
+  // Try to map product ID first
   if (productId && PRODUCT_TO_PLAN[productId]) {
     planCode = PRODUCT_TO_PLAN[productId]
-  } else if (productName.includes('studio')) {
-    planCode = 'studio'
-  } else if (productName.includes('essencial') || productName.includes('essential')) {
-    planCode = 'essential'
-  } else if (productName.includes('básico') || productName.includes('basic')) {
-    planCode = 'basic'
+    console.log('[KIWIFY] Plan detected from product ID:', planCode)
+  } else {
+    // Fallback to detecting from product name or plan name
+    planCode = detectPlanFromProductName(productName || planName)
+    console.log('[KIWIFY] Plan detected from name:', planCode, `(product: ${productName}, plan: ${planName})`)
   }
 
   // Determine subscription status based on event type
@@ -298,45 +411,81 @@ async function processKiwifyEvent(
       status = 'canceled'
       break
     default:
-      console.log('Unknown event type, defaulting to active:', eventType)
+      console.log('[KIWIFY] Unknown event type, defaulting to active:', eventType)
       status = 'active'
   }
 
   // Calculate period dates
   const now = new Date()
-  const periodStart = payload.approved_date ? new Date(payload.approved_date) : now
-  const periodEnd = new Date(periodStart)
-  periodEnd.setMonth(periodEnd.getMonth() + 1) // Add 1 month
+  let periodStart = now
+  
+  // Parse approved_date if available (format: "2026-01-14 18:50")
+  if (payload.approved_date) {
+    const parsed = new Date(payload.approved_date.replace(' ', 'T'))
+    if (!isNaN(parsed.getTime())) {
+      periodStart = parsed
+    }
+  } else if (payload.Subscription?.start_date) {
+    const parsed = new Date(payload.Subscription.start_date)
+    if (!isNaN(parsed.getTime())) {
+      periodStart = parsed
+    }
+  }
+  
+  // Calculate period end (next payment date or +1 month)
+  let periodEnd = new Date(periodStart)
+  if (payload.Subscription?.next_payment) {
+    const parsed = new Date(payload.Subscription.next_payment)
+    if (!isNaN(parsed.getTime())) {
+      periodEnd = parsed
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1)
+    }
+  } else {
+    periodEnd.setMonth(periodEnd.getMonth() + 1)
+  }
 
-  // Upsert subscription
+  const subscriptionId = payload.subscription_id || payload.Subscription?.id
+
+  // Upsert subscription if we have a user
   if (userId) {
+    const subscriptionData = {
+      owner_user_id: userId,
+      plan_code: planCode,
+      status: status,
+      provider: 'kiwify',
+      provider_subscription_id: subscriptionId || null,
+      provider_order_id: payload.order_id || null,
+      buyer_email: buyerEmail,
+      current_period_start: periodStart.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+      raw_last_event: payload as unknown,
+      updated_at: now.toISOString(),
+    }
+
+    console.log('[KIWIFY] Upserting subscription:', JSON.stringify({
+      user_id: userId,
+      plan_code: planCode,
+      status: status,
+      period_end: periodEnd.toISOString(),
+    }))
+
     const { error: upsertError } = await supabase
       .from('subscriptions')
-      .upsert({
-        owner_user_id: userId,
-        plan_code: planCode,
-        status: status,
-        provider: 'kiwify',
-        provider_subscription_id: payload.subscription_id || null,
-        provider_order_id: payload.order_id || null,
-        buyer_email: buyerEmail,
-        current_period_start: periodStart.toISOString(),
-        current_period_end: periodEnd.toISOString(),
-        raw_last_event: payload as unknown,
-        updated_at: now.toISOString(),
-      }, {
+      .upsert(subscriptionData, {
         onConflict: 'owner_user_id',
       })
 
     if (upsertError) {
-      console.error('Error upserting subscription:', upsertError)
+      console.error('[KIWIFY] Error upserting subscription:', upsertError)
       throw upsertError
     }
 
-    console.log(`Subscription ${status} for user ${userId} on plan ${planCode}`)
+    console.log(`[KIWIFY] Subscription ${status} for user ${userId} on plan ${planCode}`)
   } else {
-    // Create a pending subscription record that can be claimed
-    // Store in billing_webhook_events.payload for later matching
-    console.log(`No user found for ${buyerEmail}. Event logged for future matching.`)
+    // Store in billing_webhook_events.payload for later matching when user signs up
+    console.log(`[KIWIFY] No user found for ${buyerEmail}. Event logged for future matching.`)
+    // The event is already stored, so when user signs up with this email,
+    // we can check billing_webhook_events and create their subscription
   }
 }
