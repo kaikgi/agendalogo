@@ -1,20 +1,39 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-interface SubscriptionUsage {
+interface SubscriptionUsageResponse {
+  plan: {
+    code: string;
+    name: string;
+    price_cents: number;
+    max_professionals: number;
+    max_appointments_month: number | null;
+    allow_multi_establishments: boolean;
+  };
+  usage: {
+    professionals: number;
+    appointments_this_month: number;
+  };
+  subscription: {
+    status: string;
+    current_period_end?: string;
+  };
+}
+
+export interface SubscriptionUsage {
   plan_code: string;
   plan_name: string;
   status: string;
-  current_period_end: string;
+  current_period_end: string | null;
   max_professionals: number;
-  max_appointments_month: number;
+  max_appointments_month: number | null;
   allow_multi_establishments: boolean;
   current_professionals: number;
   current_appointments_month: number;
   can_add_professional: boolean;
   can_add_appointment: boolean;
-  professionals_remaining: number;
-  appointments_remaining: number;
+  professionals_remaining: number | null;
+  appointments_remaining: number | null;
 }
 
 export function useSubscriptionUsage(establishmentId: string | undefined) {
@@ -32,9 +51,29 @@ export function useSubscriptionUsage(establishmentId: string | undefined) {
         throw error;
       }
 
-      // Parse the JSON response
-      const result = data as unknown as SubscriptionUsage;
-      return result;
+      // Parse the response from the new RPC format
+      const response = data as unknown as SubscriptionUsageResponse;
+      
+      const maxProfessionals = response.plan.max_professionals;
+      const maxAppointments = response.plan.max_appointments_month;
+      const currentProfessionals = response.usage.professionals;
+      const currentAppointments = response.usage.appointments_this_month;
+
+      return {
+        plan_code: response.plan.code,
+        plan_name: response.plan.name,
+        status: response.subscription.status,
+        current_period_end: response.subscription.current_period_end || null,
+        max_professionals: maxProfessionals,
+        max_appointments_month: maxAppointments,
+        allow_multi_establishments: response.plan.allow_multi_establishments,
+        current_professionals: currentProfessionals,
+        current_appointments_month: currentAppointments,
+        can_add_professional: maxProfessionals === null || currentProfessionals < maxProfessionals,
+        can_add_appointment: maxAppointments === null || currentAppointments < maxAppointments,
+        professionals_remaining: maxProfessionals !== null ? Math.max(0, maxProfessionals - currentProfessionals) : null,
+        appointments_remaining: maxAppointments !== null ? Math.max(0, maxAppointments - currentAppointments) : null,
+      };
     },
     enabled: !!establishmentId,
     staleTime: 30000, // 30 seconds
