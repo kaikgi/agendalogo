@@ -6,8 +6,10 @@ import { useSubscription, getPlanDisplayInfo } from '@/hooks/useSubscription';
 import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { usePlans, formatPriceBRL } from '@/hooks/usePlans';
+import { useAuth } from '@/hooks/useAuth';
 import { SubscriptionStatusBadge } from '@/components/billing/SubscriptionStatusBadge';
 import { UsageBadge } from '@/components/dashboard/UsageBadge';
+import { getKiwifyCheckoutUrl } from '@/lib/kiwifyCheckout';
 import { 
   CreditCard, 
   Users, 
@@ -22,6 +24,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Assinatura() {
+  const { user } = useAuth();
   const { data: subscription, isLoading: subscriptionLoading } = useSubscription();
   const { data: establishment, isLoading: establishmentLoading } = useUserEstablishment();
   const { data: usage, isLoading: usageLoading } = useSubscriptionUsage(establishment?.id);
@@ -197,11 +200,12 @@ export default function Assinatura() {
                     asChild
                   >
                     <a 
-                      href={`https://pay.kiwify.com.br/${plan.code}?user_id=${subscription?.owner_user_id || ''}`}
+                      href={getKiwifyCheckoutUrl(plan.code, user?.id, user?.email || undefined)}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       Assinar {plan.name}
+                      <ExternalLink className="ml-1 h-3 w-3" />
                     </a>
                   </Button>
                 </div>
