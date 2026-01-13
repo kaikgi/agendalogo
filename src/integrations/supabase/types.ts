@@ -164,6 +164,39 @@ export type Database = {
           },
         ]
       }
+      billing_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          processing_error: string | null
+          provider: string
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          provider?: string
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          provider?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
       business_hours: {
         Row: {
           close_time: string | null
@@ -266,6 +299,44 @@ export type Database = {
           },
         ]
       }
+      establishment_monthly_usage: {
+        Row: {
+          appointments_count: number
+          created_at: string
+          establishment_id: string
+          id: string
+          month: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          appointments_count?: number
+          created_at?: string
+          establishment_id: string
+          id?: string
+          month: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          appointments_count?: number
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          month?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_monthly_usage_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null
@@ -353,7 +424,9 @@ export type Database = {
           features: Json
           id: string
           max_appointments_month: number
+          max_establishments: number | null
           max_professionals: number
+          max_professionals_per_establishment: number | null
           name: string
           popular: boolean
           price_cents: number
@@ -366,7 +439,9 @@ export type Database = {
           features?: Json
           id?: string
           max_appointments_month?: number
+          max_establishments?: number | null
           max_professionals?: number
+          max_professionals_per_establishment?: number | null
           name: string
           popular?: boolean
           price_cents: number
@@ -379,7 +454,9 @@ export type Database = {
           features?: Json
           id?: string
           max_appointments_month?: number
+          max_establishments?: number | null
           max_professionals?: number
+          max_professionals_per_establishment?: number | null
           name?: string
           popular?: boolean
           price_cents?: number
@@ -684,6 +761,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          buyer_email: string | null
           created_at: string
           current_period_end: string
           current_period_start: string
@@ -692,10 +770,16 @@ export type Database = {
           id: string
           owner_user_id: string
           plan_code: string
+          provider: string | null
+          provider_customer_id: string | null
+          provider_order_id: string | null
+          provider_subscription_id: string | null
+          raw_last_event: Json | null
           status: string
           updated_at: string
         }
         Insert: {
+          buyer_email?: string | null
           created_at?: string
           current_period_end?: string
           current_period_start?: string
@@ -704,10 +788,16 @@ export type Database = {
           id?: string
           owner_user_id: string
           plan_code: string
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_order_id?: string | null
+          provider_subscription_id?: string | null
+          raw_last_event?: Json | null
           status?: string
           updated_at?: string
         }
         Update: {
+          buyer_email?: string | null
           created_at?: string
           current_period_end?: string
           current_period_start?: string
@@ -716,6 +806,11 @@ export type Database = {
           id?: string
           owner_user_id?: string
           plan_code?: string
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_order_id?: string | null
+          provider_subscription_id?: string | null
+          raw_last_event?: Json | null
           status?: string
           updated_at?: string
         }
@@ -880,6 +975,10 @@ export type Database = {
         Args: { p_establishment_id: string }
         Returns: Json
       }
+      can_establishment_accept_bookings: {
+        Args: { p_establishment_id: string }
+        Returns: Json
+      }
       client_reschedule_appointment: {
         Args: {
           p_appointment_id: string
@@ -887,6 +986,14 @@ export type Database = {
           p_new_professional_id?: string
           p_new_start_at: string
         }
+        Returns: Json
+      }
+      get_active_plan_for_establishment: {
+        Args: { p_establishment_id: string }
+        Returns: Json
+      }
+      get_owner_subscription_status: {
+        Args: { p_owner_id: string }
         Returns: Json
       }
       get_professional_appointments: {
