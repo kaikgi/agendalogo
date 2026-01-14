@@ -356,6 +356,7 @@ export type Database = {
           name: string
           owner_user_id: string
           phone: string | null
+          reminder_hours_before: number
           require_policy_acceptance: boolean
           reschedule_min_hours: number
           slot_interval_minutes: number
@@ -381,6 +382,7 @@ export type Database = {
           name: string
           owner_user_id: string
           phone?: string | null
+          reminder_hours_before?: number
           require_policy_acceptance?: boolean
           reschedule_min_hours?: number
           slot_interval_minutes?: number
@@ -406,6 +408,7 @@ export type Database = {
           name?: string
           owner_user_id?: string
           phone?: string | null
+          reminder_hours_before?: number
           require_policy_acceptance?: boolean
           reschedule_min_hours?: number
           slot_interval_minutes?: number

@@ -56,14 +56,16 @@ function getReminderEmailHtml(appointment: {
   establishment_address: string | null;
   establishment_slug: string;
   start_at: string;
+  reminder_hours: number;
 }): string {
   const baseUrl = `https://www.agendali.online/${appointment.establishment_slug}`;
+  const hoursText = appointment.reminder_hours === 1 ? '1 hora' : `${appointment.reminder_hours} horas`;
   
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h1 style="color: #f59e0b;">⏰ Lembrete de Agendamento</h1>
       <p>Olá, <strong>${appointment.customer_name}</strong>!</p>
-      <p>Este é um lembrete do seu agendamento <strong>em 3 horas</strong> em <strong>${appointment.establishment_name}</strong>.</p>
+      <p>Este é um lembrete do seu agendamento <strong>em ${hoursText}</strong> em <strong>${appointment.establishment_name}</strong>.</p>
       
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #333;">Detalhes do Agendamento</h3>
@@ -98,40 +100,88 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Calculate time window: appointments between 2.5-3.5 hours from now
     const now = new Date();
-    const startWindow = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
-    const endWindow = new Date(now.getTime() + 3.5 * 60 * 60 * 1000);
 
-    console.log(`Looking for appointments between ${startWindow.toISOString()} and ${endWindow.toISOString()}`);
+    // Get all establishments with their reminder settings
+    const { data: establishments, error: estError } = await supabase
+      .from("establishments")
+      .select("id, reminder_hours_before")
+      .gt("reminder_hours_before", 0); // Only establishments with reminders enabled
 
-    // Fetch appointments in the 24h window that are active (booked or confirmed)
-    const { data: appointments, error: fetchError } = await supabase
-      .from("appointments")
-      .select(`
-        id,
-        start_at,
-        customer:customers(name, email, phone),
-        professional:professionals(name),
-        service:services(name, duration_minutes),
-        establishment:establishments(name, phone, address, slug)
-      `)
-      .gte("start_at", startWindow.toISOString())
-      .lte("start_at", endWindow.toISOString())
-      .in("status", ["booked", "confirmed"]);
-
-    if (fetchError) {
-      console.error("Error fetching appointments:", fetchError);
+    if (estError) {
+      console.error("Error fetching establishments:", estError);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch appointments" }),
+        JSON.stringify({ error: "Failed to fetch establishments" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log(`Found ${appointments?.length || 0} appointments to send reminders`);
+    console.log(`Found ${establishments?.length || 0} establishments with reminders enabled`);
+
+    // Group establishments by reminder hours to minimize queries
+    const hourGroups = new Map<number, string[]>();
+    for (const est of establishments || []) {
+      const hours = est.reminder_hours_before;
+      if (!hourGroups.has(hours)) {
+        hourGroups.set(hours, []);
+      }
+      hourGroups.get(hours)!.push(est.id);
+    }
+
+    // Fetch appointments for each time window
+    const allAppointments: Array<{
+      id: string;
+      start_at: string;
+      reminder_hours: number;
+      customer: { name: string; email: string | null; phone: string };
+      professional: { name: string };
+      service: { name: string; duration_minutes: number };
+      establishment: { name: string; phone: string | null; address: string | null; slug: string };
+    }> = [];
+
+    for (const [hours, establishmentIds] of hourGroups) {
+      // Calculate time window for this reminder setting (±30 min to account for cron timing)
+      const startWindow = new Date(now.getTime() + (hours - 0.5) * 60 * 60 * 1000);
+      const endWindow = new Date(now.getTime() + (hours + 0.5) * 60 * 60 * 1000);
+
+      console.log(`Looking for appointments ${hours}h before: ${startWindow.toISOString()} to ${endWindow.toISOString()}`);
+
+      const { data: appointments, error: fetchError } = await supabase
+        .from("appointments")
+        .select(`
+          id,
+          start_at,
+          customer:customers(name, email, phone),
+          professional:professionals(name),
+          service:services(name, duration_minutes),
+          establishment:establishments(name, phone, address, slug)
+        `)
+        .in("establishment_id", establishmentIds)
+        .gte("start_at", startWindow.toISOString())
+        .lte("start_at", endWindow.toISOString())
+        .in("status", ["booked", "confirmed"]);
+
+      if (fetchError) {
+        console.error(`Error fetching appointments for ${hours}h window:`, fetchError);
+        continue;
+      }
+
+      for (const apt of appointments || []) {
+        allAppointments.push({
+          ...apt,
+          reminder_hours: hours,
+          customer: apt.customer as unknown as { name: string; email: string | null; phone: string },
+          professional: apt.professional as unknown as { name: string },
+          service: apt.service as unknown as { name: string; duration_minutes: number },
+          establishment: apt.establishment as unknown as { name: string; phone: string | null; address: string | null; slug: string },
+        });
+      }
+    }
+
+    console.log(`Found ${allAppointments.length} appointments to send reminders`);
 
     const results = {
-      total: appointments?.length || 0,
+      total: allAppointments.length,
       sent: 0,
       skipped: 0,
       failed: 0,
@@ -139,11 +189,8 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     // Send reminders for each appointment
-    for (const appointment of appointments || []) {
-      const customer = appointment.customer as unknown as { name: string; email: string | null; phone: string };
-      const professional = appointment.professional as unknown as { name: string };
-      const service = appointment.service as unknown as { name: string; duration_minutes: number };
-      const establishment = appointment.establishment as unknown as { name: string; phone: string | null; address: string | null; slug: string };
+    for (const appointment of allAppointments) {
+      const { customer, professional, service, establishment, reminder_hours } = appointment;
 
       // Skip if no email
       if (!customer?.email) {
@@ -158,6 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         const fromAddress = `${establishment.name} <noreply@agendali.online>`;
+        const hoursText = reminder_hours === 1 ? 'em 1 hora' : `em ${reminder_hours} horas`;
         const emailHtml = getReminderEmailHtml({
           customer_name: customer.name,
           customer_email: customer.email,
@@ -169,11 +217,12 @@ const handler = async (req: Request): Promise<Response> => {
           establishment_address: establishment.address,
           establishment_slug: establishment.slug,
           start_at: appointment.start_at,
+          reminder_hours: reminder_hours,
         });
 
         await sendEmail(
           customer.email,
-          `⏰ Lembrete: Agendamento amanhã - ${establishment.name}`,
+          `⏰ Lembrete: Agendamento ${hoursText} - ${establishment.name}`,
           emailHtml,
           fromAddress
         );
