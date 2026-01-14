@@ -2,3 +2,6 @@ project_id = "pllrlajrjksooqdfnodo"
 
 [functions.kiwify-webhook]
 verify_jwt = false
+
+[functions.send-appointment-email]
+verify_jwt = false

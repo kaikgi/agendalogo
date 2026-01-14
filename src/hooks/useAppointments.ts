@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { sendCancellationEmail } from '@/lib/emailNotifications';
 
 type AppointmentStatus = Database['public']['Enums']['appointment_status'];
 
@@ -109,6 +110,13 @@ export function useUpdateAppointmentStatus() {
         .update({ status })
         .eq('id', id);
       if (error) throw error;
+      
+      // Send cancellation email if status is canceled
+      if (status === 'canceled') {
+        sendCancellationEmail(id).catch((emailErr) => {
+          console.warn('Failed to send cancellation email:', emailErr);
+        });
+      }
     },
     onSuccess: () => {
       // Invalidate all appointment-related queries to ensure UI updates everywhere

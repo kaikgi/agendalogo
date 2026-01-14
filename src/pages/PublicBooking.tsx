@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useCanEstablishmentAcceptBookings } from '@/hooks/useSubscription';
 import { PlanLimitAlert } from '@/components/billing/PlanLimitAlert';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { sendConfirmationEmail } from '@/lib/emailNotifications';
 import {
   Dialog,
   DialogContent,
@@ -277,6 +278,13 @@ export default function PublicBooking() {
       const result = data?.[0];
       if (result?.manage_token) {
         setManageToken(result.manage_token);
+      }
+
+      // Send confirmation email (fire and forget - don't block success)
+      if (result?.appointment_id) {
+        sendConfirmationEmail(result.appointment_id).catch((emailErr) => {
+          console.warn('Failed to send confirmation email:', emailErr);
+        });
       }
 
       setIsSuccess(true);
