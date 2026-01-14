@@ -8,4 +8,4 @@ verify_jwt = false
 
 [functions.send-reminders]
 verify_jwt = false
-schedule = "0 8 * * *"
+schedule = "*/30 * * * *"

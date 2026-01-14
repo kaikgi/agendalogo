@@ -63,7 +63,7 @@ function getReminderEmailHtml(appointment: {
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h1 style="color: #f59e0b;">⏰ Lembrete de Agendamento</h1>
       <p>Olá, <strong>${appointment.customer_name}</strong>!</p>
-      <p>Este é um lembrete do seu agendamento <strong>amanhã</strong> em <strong>${appointment.establishment_name}</strong>.</p>
+      <p>Este é um lembrete do seu agendamento <strong>em 3 horas</strong> em <strong>${appointment.establishment_name}</strong>.</p>
       
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin: 0 0 15px 0; color: #333;">Detalhes do Agendamento</h3>
@@ -98,10 +98,10 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Calculate time window: appointments between 23-25 hours from now
+    // Calculate time window: appointments between 2.5-3.5 hours from now
     const now = new Date();
-    const startWindow = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-    const endWindow = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+    const startWindow = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
+    const endWindow = new Date(now.getTime() + 3.5 * 60 * 60 * 1000);
 
     console.log(`Looking for appointments between ${startWindow.toISOString()} and ${endWindow.toISOString()}`);
 
