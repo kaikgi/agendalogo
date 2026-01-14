@@ -54,6 +54,9 @@ export const signupSchema = z.object({
     .string()
     .min(1, 'Email é obrigatório')
     .email('Email inválido'),
+  phone: z
+    .string()
+    .regex(phoneRegex, 'Telefone deve ter DDD + 8 ou 9 dígitos'),
   password: z
     .string()
     .min(8, 'Senha deve ter pelo menos 8 caracteres')
