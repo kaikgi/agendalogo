@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ClientProtectedRoute } from "@/components/ClientProtectedRoute";
+import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -45,6 +46,12 @@ import ClientForgotPassword from "./pages/client/ClientForgotPassword";
 import ClientResetPassword from "./pages/client/ClientResetPassword";
 import ProfessionalPortalLogin from "./pages/professional/ProfessionalPortalLogin";
 import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAgenda";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminEstablishments from "./pages/admin/AdminEstablishments";
+import AdminMessages from "./pages/admin/AdminMessages";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminAdmins from "./pages/admin/AdminAdmins";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +144,17 @@ const App = () => (
               <Route path="avaliacoes" element={<Avaliacoes />} />
               <Route path="assinatura" element={<Assinatura />} />
               <Route path="configuracoes" element={<Configuracoes />} />
+            </Route>
+            
+            {/* Admin Panel (protected) */}
+            <Route path="/admin" element={<AdminProtectedRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="estabelecimentos" element={<AdminEstablishments />} />
+                <Route path="mensagens" element={<AdminMessages />} />
+                <Route path="assinaturas" element={<AdminSubscriptions />} />
+                <Route path="admins" element={<AdminAdmins />} />
+              </Route>
             </Route>
             
             {/* Professional Portal */}

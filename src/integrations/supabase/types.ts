@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       allowed_establishment_signups: {
         Row: {
           created_at: string
@@ -307,6 +328,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_messages: {
+        Row: {
+          admin_reply: string | null
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          replied_at: string | null
+          replied_by: string | null
+          status: string
+        }
+        Insert: {
+          admin_reply?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          replied_at?: string | null
+          replied_by?: string | null
+          status?: string
+        }
+        Update: {
+          admin_reply?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          replied_at?: string | null
+          replied_by?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       customers: {
         Row: {
@@ -1116,6 +1173,22 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_contact_messages: {
+        Args: { p_limit?: number; p_offset?: number; p_status?: string }
+        Returns: Json
+      }
+      admin_list_establishments: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: Json
+      }
+      admin_toggle_establishment: {
+        Args: { p_active: boolean; p_establishment_id: string }
+        Returns: Json
+      }
+      admin_update_establishment_plan: {
+        Args: { p_establishment_id: string; p_new_plan_code: string }
+        Returns: Json
+      }
       can_create_appointment: {
         Args: { p_establishment_id: string }
         Returns: Json
@@ -1146,6 +1219,7 @@ export type Database = {
         Args: { p_establishment_id: string }
         Returns: Json
       }
+      get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_establishment_rating: {
         Args: { p_establishment_id: string }
         Returns: Json
@@ -1162,6 +1236,7 @@ export type Database = {
         Args: { p_establishment_id: string }
         Returns: Json
       }
+      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_establishment_member: { Args: { est_id: string }; Returns: boolean }
       professional_portal_login: {
         Args: {
