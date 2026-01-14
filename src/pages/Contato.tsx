@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, MessageSquare, MapPin } from "lucide-react";
+import { Mail, MessageSquare, MapPin, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contato = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,13 +15,37 @@ const Contato = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success("Mensagem enviada! Entraremos em contato em breve.");
-    setIsSubmitting(false);
-    (e.target as HTMLFormElement).reset();
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const message = formData.get("message") as string;
+
+    // Validate
+    if (!name || !email || !message) {
+      toast.error("Por favor, preencha todos os campos.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("send-contact", {
+        body: { name, email, message },
+      });
+
+      if (error) {
+        console.error("Error sending contact:", error);
+        toast.error("Erro ao enviar mensagem. Tente novamente.");
+      } else {
+        toast.success("Mensagem enviada! Entraremos em contato em breve.");
+        (e.target as HTMLFormElement).reset();
+      }
+    } catch (err) {
+      console.error("Exception:", err);
+      toast.error("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -95,6 +120,7 @@ const Contato = () => {
                     name="name"
                     placeholder="Seu nome" 
                     required 
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -106,6 +132,7 @@ const Contato = () => {
                     type="email" 
                     placeholder="seu@email.com" 
                     required 
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -117,11 +144,19 @@ const Contato = () => {
                     placeholder="Como podemos ajudar?" 
                     rows={5}
                     required 
+                    disabled={isSubmitting}
                   />
                 </div>
                 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Enviando..." : "Enviar mensagem"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Enviar mensagem"
+                  )}
                 </Button>
               </form>
             </div>
