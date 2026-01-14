@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { sendRatingNotificationEmail } from '@/lib/emailNotifications';
 
 interface Rating {
   id: string;
@@ -108,6 +109,13 @@ export function useSubmitRating() {
           throw new Error('Você já avaliou este agendamento');
         }
         throw error;
+      }
+
+      // Send notification email to establishment owner (fire and forget)
+      if (data?.id) {
+        sendRatingNotificationEmail(data.id).catch((emailErr) => {
+          console.warn('Failed to send rating notification email:', emailErr);
+        });
       }
 
       return data;
