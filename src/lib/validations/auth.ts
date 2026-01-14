@@ -56,8 +56,8 @@ export const signupSchema = z.object({
     .email('Email inválido'),
   password: z
     .string()
-    .min(1, 'Senha é obrigatória')
-    .min(8, 'Senha deve ter pelo menos 8 caracteres'),
+    .min(8, 'Senha deve ter pelo menos 8 caracteres')
+    .regex(strongPasswordRegex, 'Senha deve conter maiúscula, minúscula, número e caractere especial'),
   confirmPassword: z
     .string()
     .min(1, 'Confirmação de senha é obrigatória'),
