@@ -1,31 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import { getOAuthRedirectUrl } from '@/lib/publicUrl';
-
-const signupSchema = z.object({
-  full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
-  email: z.string().email('Email inválido'),
-  phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos').max(20),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'As senhas não coincidem',
-  path: ['confirmPassword'],
-});
-
-type SignupFormData = z.infer<typeof signupSchema>;
+import { clientSignupSchema, type ClientSignupFormData } from '@/lib/validations/auth';
 
 export default function ClientSignup() {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,12 +31,17 @@ export default function ClientSignup() {
   const {
     register,
     handleSubmit,
+    control,
+    watch,
     formState: { errors },
-  } = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema),
+  } = useForm<ClientSignupFormData>({
+    resolver: zodResolver(clientSignupSchema),
+    mode: 'onChange',
   });
 
-  const onSubmit = async (data: SignupFormData) => {
+  const passwordValue = watch('password', '');
+
+  const onSubmit = async (data: ClientSignupFormData) => {
     setIsLoading(true);
 
     try {
@@ -109,7 +104,6 @@ export default function ClientSignup() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    // Use the from path to redirect after Google OAuth
     const { error } = await signInWithGoogle(from);
     setIsGoogleLoading(false);
     if (error) {
@@ -201,26 +195,42 @@ export default function ClientSignup() {
 
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="(11) 99999-9999"
-              {...register('phone')}
+            <Controller
+              name="phone"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <PhoneInput
+                  id="phone"
+                  placeholder="(11) 99999-9999"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
             {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" {...register('password')} />
+            <PasswordInput
+              id="password"
+              placeholder="Crie uma senha forte"
+              {...register('password')}
+            />
             {errors.password && (
               <p className="text-sm text-destructive">{errors.password.message}</p>
             )}
+            {passwordValue && <PasswordStrength password={passwordValue} />}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-            <Input id="confirmPassword" type="password" {...register('confirmPassword')} />
+            <PasswordInput
+              id="confirmPassword"
+              placeholder="Confirme sua senha"
+              {...register('confirmPassword')}
+            />
             {errors.confirmPassword && (
               <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
             )}
