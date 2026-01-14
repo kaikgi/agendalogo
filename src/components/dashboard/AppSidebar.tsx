@@ -15,8 +15,10 @@ import {
   Check,
   CreditCard,
   Star,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminAccess } from '@/hooks/useAdmin';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import {
   Sidebar,
@@ -54,10 +56,12 @@ export function AppSidebar() {
   const location = useLocation();
   const { signOut } = useAuth();
   const { data: establishment } = useUserEstablishment();
+  const { data: adminAccess } = useAdminAccess();
   const { state } = useSidebar();
   const { toast } = useToast();
   const collapsed = state === 'collapsed';
   const [copied, setCopied] = useState(false);
+  const isAdmin = adminAccess?.isAdmin ?? false;
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -169,7 +173,23 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
+        {isAdmin && (
+          <Link to="/admin">
+            <Button
+              variant="outline"
+              size={collapsed ? "icon" : "default"}
+              className={cn(
+                "w-full border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground",
+                collapsed && "justify-center"
+              )}
+              title="Ir para Painel Admin"
+            >
+              <Shield className="h-4 w-4" />
+              {!collapsed && <span className="ml-2">Painel Admin</span>}
+            </Button>
+          </Link>
+        )}
         <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
           {!collapsed && (
             <div className="flex-1 min-w-0">
