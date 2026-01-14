@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Brazilian phone validation: 10 or 11 digits (DDD + phone)
+const phoneRegex = /^\d{10,11}$/;
+
 export const customerFormSchema = z.object({
   name: z
     .string()
@@ -8,7 +11,7 @@ export const customerFormSchema = z.object({
   phone: z
     .string()
     .min(1, 'Telefone é obrigatório')
-    .regex(/^\(\d{2}\)\s?\d{4,5}-?\d{4}$/, 'Formato: (99) 99999-9999'),
+    .regex(phoneRegex, 'Telefone deve ter DDD + 8 ou 9 dígitos'),
   email: z
     .string()
     .email('Email inválido')
@@ -23,11 +26,11 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormData = z.infer<typeof customerFormSchema>;
 
-// Phone mask helper
+// Phone mask helper (keeping for backwards compatibility)
 export function formatPhone(value: string): string {
   const numbers = value.replace(/\D/g, '');
   if (numbers.length <= 2) return numbers.length ? `(${numbers}` : '';
-  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-  if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+  if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
   return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
 }
