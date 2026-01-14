@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { sendRescheduleEmail } from '@/lib/emailNotifications';
 
 interface RescheduleResult {
   success: boolean;
@@ -43,7 +44,16 @@ export function useClientReschedule() {
         throw new Error(errorMessage || 'Erro ao reagendar');
       }
 
-      return data as unknown as RescheduleResult;
+      const result = data as unknown as RescheduleResult;
+
+      // Send reschedule email (fire and forget)
+      if (result.success && result.appointment?.id) {
+        sendRescheduleEmail(result.appointment.id).catch((emailErr) => {
+          console.warn('Failed to send reschedule email:', emailErr);
+        });
+      }
+
+      return result;
     },
     onSuccess: () => {
       // Invalidate all appointment-related queries
