@@ -14,7 +14,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { useAvailableSlots } from '@/hooks/useAvailableSlots';
+import { useAvailableSlotsForReschedule } from '@/hooks/useAvailableSlotsForReschedule';
 import { useClientReschedule } from '@/hooks/useClientReschedule';
 import { useProfessionalsByService } from '@/hooks/useProfessionals';
 import { cn } from '@/lib/utils';
@@ -74,14 +74,15 @@ export function ClientRescheduleDialog({
     setShowProfessionalSelector(false);
   };
 
-  // Fetch available slots based on selected professional
-  const { data: availableSlots = [], isLoading: slotsLoading } = useAvailableSlots({
+  // Fetch available slots based on selected professional - IGNORE current appointment
+  const { data: availableSlots = [], isLoading: slotsLoading } = useAvailableSlotsForReschedule({
     establishmentId: appointment?.establishment.id,
     professionalId: selectedProfessionalId,
     serviceDurationMinutes: appointment?.service.duration_minutes || 30,
     date: selectedDate,
     slotIntervalMinutes: 15,
     bufferMinutes: 0,
+    ignoreAppointmentId: appointment?.id, // Ignore current appointment
   });
 
   // Date limits

@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useCanEstablishmentAcceptBookings } from '@/hooks/useSubscription';
 import { PlanLimitAlert } from '@/components/billing/PlanLimitAlert';
+import { EstablishmentRatingDisplay } from '@/components/ratings/EstablishmentRatingDisplay';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { sendConfirmationEmail } from '@/lib/emailNotifications';
 import {
@@ -443,6 +444,11 @@ export default function PublicBooking() {
               <div>
                 <h1 className="font-bold">{establishment.name}</h1>
                 <p className="text-sm text-muted-foreground">Agendamento online</p>
+                <EstablishmentRatingDisplay 
+                  establishmentId={establishment.id} 
+                  size="sm"
+                  className="mt-1"
+                />
               </div>
             </div>
             {session ? (

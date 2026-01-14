@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_completion_prompts: {
+        Row: {
+          action_taken: string | null
+          appointment_id: string
+          id: string
+          prompted_at: string
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          action_taken?: string | null
+          appointment_id: string
+          id?: string
+          prompted_at?: string
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          action_taken?: string | null
+          appointment_id?: string
+          id?: string
+          prompted_at?: string
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_completion_prompts_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_events: {
         Row: {
           actor_type: Database["public"]["Enums"]["event_actor_type"]
@@ -92,6 +127,8 @@ export type Database = {
       }
       appointments: {
         Row: {
+          completed_at: string | null
+          completed_by: string | null
           created_at: string
           customer_id: string
           customer_notes: string | null
@@ -106,6 +143,8 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
         }
         Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           customer_id: string
           customer_notes?: string | null
@@ -120,6 +159,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
         }
         Update: {
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           customer_id?: string
           customer_notes?: string | null
@@ -670,6 +711,61 @@ export type Database = {
         }
         Relationships: []
       }
+      ratings: {
+        Row: {
+          appointment_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          customer_user_id: string | null
+          establishment_id: string
+          id: string
+          stars: number
+        }
+        Insert: {
+          appointment_id: string
+          comment?: string | null
+          created_at?: string
+          customer_id: string
+          customer_user_id?: string | null
+          establishment_id: string
+          id?: string
+          stars: number
+        }
+        Update: {
+          appointment_id?: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string
+          customer_user_id?: string | null
+          establishment_id?: string
+          id?: string
+          stars?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_time_blocks: {
         Row: {
           active: boolean
@@ -967,6 +1063,22 @@ export type Database = {
           },
         ]
       }
+      v_establishment_ratings: {
+        Row: {
+          establishment_id: string | null
+          rating_avg: number | null
+          rating_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_create_appointment: {
@@ -992,6 +1104,10 @@ export type Database = {
         Returns: Json
       }
       get_active_plan_for_establishment: {
+        Args: { p_establishment_id: string }
+        Returns: Json
+      }
+      get_establishment_rating: {
         Args: { p_establishment_id: string }
         Returns: Json
       }

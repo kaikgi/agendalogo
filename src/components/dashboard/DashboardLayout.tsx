@@ -1,8 +1,12 @@
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
+import { CompletionPromptDialog } from '@/components/completion/CompletionPromptDialog';
+import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 
 export function DashboardLayout() {
+  const { data: establishment } = useUserEstablishment();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -16,6 +20,12 @@ export function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      {/* Completion Prompt Dialog - 1 min after appointment ends */}
+      <CompletionPromptDialog 
+        establishmentId={establishment?.id} 
+        userType="establishment" 
+      />
     </SidebarProvider>
   );
 }
