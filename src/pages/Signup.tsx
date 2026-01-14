@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { signupSchema, SignupFormData } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,16 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { supabase } from '@/integrations/supabase/client';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
 
 export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -22,12 +28,52 @@ export default function Signup() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
+  const password = watch('password', '');
+
+  const checkEmailAllowed = async (email: string): Promise<boolean> => {
+    setIsCheckingEmail(true);
+    setEmailError(null);
+
+    try {
+      const { data, error } = await supabase.rpc('check_establishment_signup_allowed', {
+        p_email: email,
+      });
+
+      if (error) {
+        console.error('Error checking email:', error);
+        // In case of RPC error, allow signup (will fail later if not authorized)
+        return true;
+      }
+
+      const result = data as { allowed: boolean; reason?: string };
+      
+      if (!result.allowed) {
+        setEmailError(result.reason || 'Email não autorizado para cadastro de estabelecimento.');
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Exception checking email:', err);
+      return true; // Allow to proceed, will fail at signup if not authorized
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
   const onSubmit = async (data: SignupFormData) => {
+    // First check if email is allowed
+    const isAllowed = await checkEmailAllowed(data.email);
+    if (!isAllowed) {
+      return;
+    }
+
     setIsLoading(true);
     const { error } = await signUp({
       email: data.email,
@@ -35,9 +81,9 @@ export default function Signup() {
       fullName: data.fullName,
       companyName: data.companyName,
     });
-    setIsLoading(false);
 
     if (error) {
+      setIsLoading(false);
       toast({
         variant: 'destructive',
         title: 'Erro ao criar conta',
@@ -46,6 +92,16 @@ export default function Signup() {
       return;
     }
 
+    // Mark signup as used and create subscription
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user?.id) {
+      await supabase.rpc('use_establishment_signup', {
+        p_email: data.email,
+        p_owner_user_id: userData.user.id,
+      });
+    }
+
+    setIsLoading(false);
     toast({
       title: 'Conta criada!',
       description: 'Seu estabelecimento foi configurado com sucesso.',
@@ -75,12 +131,24 @@ export default function Signup() {
             <Logo />
           </Link>
           <h1 className="mt-6 text-2xl font-bold tracking-tight">
-            Crie sua conta
+            Área do Estabelecimento
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Comece a gerenciar seus agendamentos agora
+            Crie sua conta para gerenciar seus agendamentos
           </p>
         </div>
+
+        {/* Info Alert */}
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Conta de Estabelecimento</AlertTitle>
+          <AlertDescription>
+            Para criar uma conta de estabelecimento, é necessário ter um plano ativo.{' '}
+            <Link to="/precos" className="font-medium text-primary hover:underline inline-flex items-center gap-1">
+              Ver planos <ExternalLink className="h-3 w-3" />
+            </Link>
+          </AlertDescription>
+        </Alert>
 
         <Button
           type="button"
@@ -124,6 +192,19 @@ export default function Signup() {
             </span>
           </div>
         </div>
+
+        {emailError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Cadastro não autorizado</AlertTitle>
+            <AlertDescription>
+              {emailError}{' '}
+              <Link to="/precos" className="font-medium underline">
+                Adquira um plano
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -170,13 +251,13 @@ export default function Signup() {
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
-              placeholder="••••••••"
+              placeholder="Mínimo 8 caracteres"
               autoComplete="new-password"
               {...register('password')}
             />
+            <PasswordStrength password={password} />
             {errors.password && (
               <p className="text-sm text-destructive">{errors.password.message}</p>
             )}
@@ -184,10 +265,9 @@ export default function Signup() {
 
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar senha</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
+              placeholder="Repita a senha"
               autoComplete="new-password"
               {...register('confirmPassword')}
             />
@@ -196,9 +276,9 @@ export default function Signup() {
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar conta
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isCheckingEmail}>
+            {(isLoading || isCheckingEmail) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isCheckingEmail ? 'Verificando...' : 'Criar conta'}
           </Button>
         </form>
 
@@ -206,6 +286,13 @@ export default function Signup() {
           Já tem uma conta?{' '}
           <Link to="/login" className="font-medium text-foreground hover:underline">
             Entrar
+          </Link>
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground">
+          É cliente e quer agendar?{' '}
+          <Link to="/cliente/login" className="font-medium text-primary hover:underline">
+            Área do Cliente
           </Link>
         </p>
       </div>

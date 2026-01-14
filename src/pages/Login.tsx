@@ -72,10 +72,10 @@ export default function Login() {
             <Logo />
           </Link>
           <h1 className="mt-6 text-2xl font-bold tracking-tight">
-            Entre na sua conta
+            Área do Estabelecimento
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Gerencie seus agendamentos de forma simples
+            Acesse o painel de gerenciamento
           </p>
         </div>
 
@@ -168,7 +168,14 @@ export default function Login() {
         <p className="text-center text-sm text-muted-foreground">
           Não tem uma conta?{' '}
           <Link to="/cadastro" className="font-medium text-foreground hover:underline">
-            Criar conta
+            Criar conta de estabelecimento
+          </Link>
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground">
+          É cliente e quer agendar?{' '}
+          <Link to="/cliente/login" className="font-medium text-primary hover:underline">
+            Área do Cliente
           </Link>
         </p>
       </div>

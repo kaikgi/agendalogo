@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerFormData } from '@/lib/validations/booking';
-import { getManageAppointmentUrl } from '@/lib/publicUrl';
+import { getManageAppointmentUrl, buildPublicUrl } from '@/lib/publicUrl';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useCanEstablishmentAcceptBookings } from '@/hooks/useSubscription';
@@ -183,7 +183,7 @@ export default function PublicBooking() {
         email: signupEmail,
         password: signupPassword,
         options: {
-          emailRedirectTo: window.location.href,
+          emailRedirectTo: buildPublicUrl(`/${slug}`),
           data: {
             full_name: signupName,
           },
@@ -223,7 +223,7 @@ export default function PublicBooking() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.href,
+          redirectTo: buildPublicUrl(`/${slug}`),
         },
       });
       if (error) throw error;

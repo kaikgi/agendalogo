@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Entrar from "./pages/Entrar";
+import ResetPassword from "./pages/ResetPassword";
 import PublicBooking from "./pages/PublicBooking";
 import ManageAppointment from "./pages/ManageAppointment";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,8 @@ import ClientHistory from "./pages/client/ClientHistory";
 import ClientLogin from "./pages/client/ClientLogin";
 import ClientSignup from "./pages/client/ClientSignup";
 import ClientSearch from "./pages/client/ClientSearch";
+import ClientForgotPassword from "./pages/client/ClientForgotPassword";
+import ClientResetPassword from "./pages/client/ClientResetPassword";
 import ProfessionalPortalLogin from "./pages/professional/ProfessionalPortalLogin";
 import ProfessionalPortalAgenda from "./pages/professional/ProfessionalPortalAgenda";
 
@@ -89,10 +92,13 @@ const App = () => (
             <Route path="/cadastro" element={<Signup />} />
             <Route path="/criar-conta" element={<Signup />} />
             <Route path="/esqueci-senha" element={<ForgotPassword />} />
+            <Route path="/resetar-senha" element={<ResetPassword />} />
             
             {/* Client Login & Signup */}
             <Route path="/cliente/login" element={<ClientLogin />} />
             <Route path="/cliente/cadastro" element={<ClientSignup />} />
+            <Route path="/cliente/esqueci-senha" element={<ClientForgotPassword />} />
+            <Route path="/cliente/resetar-senha" element={<ClientResetPassword />} />
             <Route path="/client/login" element={<ClientLogin />} />
             <Route path="/client/signup" element={<ClientSignup />} />
             

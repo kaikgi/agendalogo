@@ -447,6 +447,31 @@ async function processKiwifyEvent(
 
   const subscriptionId = payload.subscription_id || payload.Subscription?.id
 
+  // Always add to allowed_establishment_signups for new signups
+  const orderId = payload.order_id || subscriptionId || crypto.randomUUID()
+  
+  if (eventType === KIWIFY_EVENTS.ORDER_APPROVED && status === 'active') {
+    // Insert into allowed_establishment_signups for new purchases
+    const { error: signupError } = await supabase
+      .from('allowed_establishment_signups')
+      .upsert({
+        email: buyerEmail,
+        plan_id: planCode,
+        kiwify_order_id: orderId,
+        paid_at: periodStart.toISOString(),
+        used: !!userId, // If user already exists, mark as used
+      }, {
+        onConflict: 'email',
+        ignoreDuplicates: false,
+      })
+    
+    if (signupError && signupError.code !== '23505') {
+      console.error('[KIWIFY] Error inserting allowed signup:', signupError)
+    } else {
+      console.log(`[KIWIFY] Added/updated allowed signup for ${buyerEmail} with plan ${planCode}`)
+    }
+  }
+
   // Upsert subscription if we have a user
   if (userId) {
     const subscriptionData = {
@@ -482,10 +507,14 @@ async function processKiwifyEvent(
     }
 
     console.log(`[KIWIFY] Subscription ${status} for user ${userId} on plan ${planCode}`)
+    
+    // Mark allowed signup as used
+    await supabase
+      .from('allowed_establishment_signups')
+      .update({ used: true })
+      .eq('email', buyerEmail)
   } else {
     // Store in billing_webhook_events.payload for later matching when user signs up
-    console.log(`[KIWIFY] No user found for ${buyerEmail}. Event logged for future matching.`)
-    // The event is already stored, so when user signs up with this email,
-    // we can check billing_webhook_events and create their subscription
+    console.log(`[KIWIFY] No user found for ${buyerEmail}. Allowed signup created, event logged for future matching.`)
   }
 }
