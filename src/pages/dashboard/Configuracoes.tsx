@@ -71,6 +71,7 @@ export default function Configuracoes() {
     reschedule_min_hours: 2,
     max_future_days: 30,
     slot_interval_minutes: 15,
+    reminder_hours_before: 3,
   });
 
   // Initialize form when establishment loads
@@ -93,6 +94,7 @@ export default function Configuracoes() {
         reschedule_min_hours: establishment.reschedule_min_hours,
         max_future_days: establishment.max_future_days,
         slot_interval_minutes: establishment.slot_interval_minutes,
+        reminder_hours_before: (establishment as any).reminder_hours_before ?? 3,
       });
     }
   }, [establishment]);
@@ -278,6 +280,7 @@ export default function Configuracoes() {
           reschedule_min_hours: form.reschedule_min_hours,
           max_future_days: form.max_future_days,
           slot_interval_minutes: form.slot_interval_minutes,
+          reminder_hours_before: form.reminder_hours_before,
         } as any)
         .eq('id', establishment.id);
 
@@ -573,7 +576,7 @@ export default function Configuracoes() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="reschedule">Antecedência mínima (horas)</Label>
               <Input
@@ -594,8 +597,11 @@ export default function Configuracoes() {
                 onChange={(e) => setForm({ ...form, max_future_days: parseInt(e.target.value) || 30 })}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="interval">Intervalo (minutos)</Label>
+              <Label htmlFor="interval">Intervalo de horários (minutos)</Label>
               <Input
                 id="interval"
                 type="number"
@@ -604,6 +610,20 @@ export default function Configuracoes() {
                 value={form.slot_interval_minutes}
                 onChange={(e) => setForm({ ...form, slot_interval_minutes: parseInt(e.target.value) || 15 })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reminder">Lembrete por e-mail (horas antes)</Label>
+              <Input
+                id="reminder"
+                type="number"
+                min={0}
+                max={48}
+                value={form.reminder_hours_before}
+                onChange={(e) => setForm({ ...form, reminder_hours_before: parseInt(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-muted-foreground">
+                0 = desativado
+              </p>
             </div>
           </div>
         </CardContent>
