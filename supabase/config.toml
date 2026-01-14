@@ -5,3 +5,7 @@ verify_jwt = false
 
 [functions.send-appointment-email]
 verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+schedule = "0 8 * * *"
