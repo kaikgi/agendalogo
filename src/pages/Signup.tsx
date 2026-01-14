@@ -98,6 +98,13 @@ export default function Signup() {
     // Mark signup as used and create subscription
     const { data: userData } = await supabase.auth.getUser();
     if (userData?.user?.id) {
+      // Save phone to profile
+      await supabase.from('profiles').upsert({
+        id: userData.user.id,
+        full_name: data.fullName,
+        phone: data.phone,
+      });
+
       await supabase.rpc('use_establishment_signup', {
         p_email: data.email,
         p_owner_user_id: userData.user.id,
