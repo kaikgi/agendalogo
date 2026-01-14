@@ -1,17 +1,13 @@
-import { Calendar, Users, XCircle, TrendingUp, UserCheck, UsersRound, RefreshCw, Zap } from 'lucide-react';
+import { Calendar, Users, XCircle, TrendingUp, UserCheck, UsersRound, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
-import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { UsageBadge } from '@/components/dashboard/UsageBadge';
-import { useNavigate } from 'react-router-dom';
 
 function DashboardContent({ establishmentId }: { establishmentId: string }) {
-  const navigate = useNavigate();
   const {
     today,
     week,
@@ -25,8 +21,6 @@ function DashboardContent({ establishmentId }: { establishmentId: string }) {
     error,
     refetch,
   } = useDashboardMetrics(establishmentId);
-
-  const { data: usage, isLoading: usageLoading } = useSubscriptionUsage(establishmentId);
 
   const handleRetry = () => {
     refetch();
@@ -53,46 +47,9 @@ function DashboardContent({ establishmentId }: { establishmentId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu estabelecimento</p>
-        </div>
-
-        {/* Plan Usage Card */}
-        {usage && !usageLoading && (
-          <Card className="w-72">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">Seu Plano</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary text-xs h-auto p-0"
-                  onClick={() => navigate('/precos')}
-                >
-                  <Zap className="h-3 w-3 mr-1" />
-                  Upgrade
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-bold capitalize">{usage.plan_name}</span>
-              </div>
-              <UsageBadge
-                current={usage.current_professionals}
-                max={usage.max_professionals}
-                label="Profissionais"
-              />
-              <UsageBadge
-                current={usage.current_appointments_month}
-                max={usage.max_appointments_month}
-                label="Agendamentos (mês)"
-              />
-            </CardContent>
-          </Card>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Visão geral do seu estabelecimento</p>
       </div>
 
       {/* Metrics Cards */}
