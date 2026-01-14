@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Logo } from '@/components/Logo';
+import { CompletionPromptDialog } from '@/components/completion/CompletionPromptDialog';
 
 const navItems = [
   { path: '/client', label: 'Visão Geral', icon: LayoutDashboard, exact: true },
@@ -152,6 +153,9 @@ export default function ClientLayout() {
           </div>
         </main>
       </div>
+
+      {/* Completion Prompt Dialog - 1 min after appointment ends */}
+      <CompletionPromptDialog userType="customer" />
     </div>
   );
 }
