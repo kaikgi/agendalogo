@@ -46,7 +46,7 @@ export function Header() {
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">Entrar</Link>
+            <Link to="/entrar">Entrar</Link>
           </Button>
           <Button variant="default" size="sm" asChild>
             <Link to="/precos">Começar agora</Link>
@@ -100,7 +100,7 @@ export function Header() {
           </Link>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" size="sm" className="flex-1" asChild>
-              <Link to="/login">Entrar</Link>
+              <Link to="/entrar">Entrar</Link>
             </Button>
             <Button variant="default" size="sm" className="flex-1" asChild>
               <Link to="/precos">Começar agora</Link>
