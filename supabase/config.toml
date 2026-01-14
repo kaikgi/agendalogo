@@ -9,3 +9,18 @@ verify_jwt = false
 [functions.send-reminders]
 verify_jwt = false
 schedule = "*/30 * * * *"
+
+[functions.send-contact]
+verify_jwt = false
+
+[functions.send-rating-email]
+verify_jwt = false
+
+[functions.admin-add-user]
+verify_jwt = false
+
+[functions.admin-set-plan]
+verify_jwt = false
+
+[functions.admin-reply-contact]
+verify_jwt = false

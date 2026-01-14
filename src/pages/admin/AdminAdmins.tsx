@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAddAdmin } from "@/hooks/useAdmin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Users, Plus, Trash2, Shield } from "lucide-react";
+import { Users, Plus, Trash2, Shield, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -43,36 +44,28 @@ export default function AdminAdmins() {
 
       if (error) throw error;
 
-      // Get emails for each admin
-      const adminWithEmails = await Promise.all(
-        (data || []).map(async (admin) => {
-          // We can't query auth.users directly, so we'll show the user_id
-          return {
-            ...admin,
-            email: admin.user_id, // In production, you'd want to store email in admin_users or use an edge function
-          };
-        })
-      );
-
-      return adminWithEmails as AdminUser[];
+      return (data || []) as AdminUser[];
     },
   });
 
-  // Add admin mutation
-  const addAdmin = useMutation({
-    mutationFn: async (email: string) => {
-      // First, find the user by email - this requires an edge function in production
-      // For now, we'll show a message that this needs to be done via edge function
-      toast.error("Para adicionar admins, use o console do Supabase ou crie uma Edge Function dedicada.");
-      throw new Error("Not implemented");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+  // Add admin mutation using Edge Function
+  const addAdmin = useAddAdmin();
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail.trim()) {
+      toast.error("Informe o email do usuário");
+      return;
+    }
+
+    try {
+      await addAdmin.mutateAsync(newAdminEmail.trim());
+      toast.success("Administrador adicionado com sucesso");
       setIsDialogOpen(false);
       setNewAdminEmail("");
-      toast.success("Admin adicionado com sucesso");
-    },
-  });
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao adicionar administrador");
+    }
+  };
 
   // Remove admin mutation
   const removeAdmin = useMutation({
@@ -131,6 +124,7 @@ export default function AdminAdmins() {
                 onChange={(e) => setNewAdminEmail(e.target.value)}
                 placeholder="admin@exemplo.com"
                 className="mt-2"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddAdmin()}
               />
             </div>
 
@@ -139,9 +133,10 @@ export default function AdminAdmins() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => addAdmin.mutate(newAdminEmail)}
-                disabled={!newAdminEmail || addAdmin.isPending}
+                onClick={handleAddAdmin}
+                disabled={!newAdminEmail.trim() || addAdmin.isPending}
               >
+                {addAdmin.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {addAdmin.isPending ? "Adicionando..." : "Adicionar"}
               </Button>
             </DialogFooter>
@@ -157,8 +152,8 @@ export default function AdminAdmins() {
             <div>
               <p className="font-medium">Gerenciamento de Admins</p>
               <p className="text-sm text-muted-foreground">
-                Para adicionar um novo administrador, adicione o user_id diretamente na tabela admin_users
-                via Supabase Dashboard ou crie uma Edge Function dedicada.
+                Para adicionar um novo administrador, o usuário precisa ter uma conta no sistema.
+                Digite o email e clique em Adicionar.
               </p>
             </div>
           </div>
@@ -183,9 +178,9 @@ export default function AdminAdmins() {
                       <Shield className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Admin</p>
+                      <p className="font-medium">Administrador</p>
                       <p className="text-sm text-muted-foreground font-mono">
-                        {admin.user_id}
+                        {admin.user_id.substring(0, 8)}...
                       </p>
                     </div>
                   </div>

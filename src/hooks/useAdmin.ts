@@ -136,12 +136,23 @@ export function useUpdateEstablishmentPlan() {
       establishmentId: string;
       newPlanCode: string;
     }) => {
-      const { data, error } = await supabase.rpc("admin_update_establishment_plan", {
-        p_establishment_id: establishmentId,
-        p_new_plan_code: newPlanCode,
+      // Use Edge Function instead of RPC to bypass RLS
+      const { data, error } = await supabase.functions.invoke('admin-set-plan', {
+        body: {
+          establishment_id: establishmentId,
+          plan_code: newPlanCode,
+        },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Erro ao atualizar plano');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -189,22 +200,56 @@ export function useUpdateContactMessageStatus() {
       status: string;
       reply?: string;
     }) => {
-      const updateData: Record<string, unknown> = { status };
-      if (reply) {
-        updateData.admin_reply = reply;
-        updateData.replied_at = new Date().toISOString();
+      // Use Edge Function instead of direct update to bypass RLS and send email
+      const { data, error } = await supabase.functions.invoke('admin-reply-contact', {
+        body: {
+          message_id: messageId,
+          status: status as 'replied' | 'closed',
+          reply_text: reply,
+        },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Erro ao atualizar mensagem');
       }
 
-      const { error } = await supabase
-        .from("contact_messages")
-        .update(updateData)
-        .eq("id", messageId);
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
-      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-contact-messages"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+  });
+}
+
+export function useAddAdmin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (email: string) => {
+      // Use Edge Function to add admin with service role
+      const { data, error } = await supabase.functions.invoke('admin-add-user', {
+        body: { email },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Erro ao adicionar administrador');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     },
   });
 }

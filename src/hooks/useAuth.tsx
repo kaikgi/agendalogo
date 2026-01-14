@@ -49,104 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       // Avoid flipping loading=false before we've processed the initial session.
-      // This prevents protected routes from redirecting to /login while OAuth
-      // is still exchanging the code for a session.
       if (initialSessionChecked.current) {
         setLoading(false);
       }
 
-      // Only create establishment on initial SIGNED_IN (not on token refresh)
+      // IMPORTANT: DO NOT automatically create establishments here.
+      // Establishments should ONLY be created when a user explicitly signs up
+      // as an establishment owner AND has a valid entry in allowed_establishment_signups.
+      // This prevents clients from becoming establishments automatically.
       if (event === 'SIGNED_IN' && session?.user) {
         setLoading(false);
-
-        setTimeout(async () => {
-          const userId = session.user.id;
-
-          // Check if user already has ANY establishment (not just one)
-          const { data: existing, error: checkError } = await supabase
-            .from('establishments')
-            .select('id')
-            .eq('owner_user_id', userId)
-            .limit(1);
-
-          if (checkError) {
-            console.error('Error checking establishment:', checkError);
-            return;
-          }
-
-          // If user already has at least one establishment, skip creation
-          if (existing && existing.length > 0) {
-            return;
-          }
-
-          // Get user metadata for company name
-          const metadata = session.user.user_metadata;
-          const companyName =
-            metadata?.company_name ||
-            metadata?.full_name ||
-            session.user.email?.split('@')[0] ||
-            'Meu Estabelecimento';
-          const baseSlug = generateSlug(companyName);
-          const slug = `${baseSlug}-${Date.now().toString(36)}`;
-
-          // Create establishment
-          const { data: establishment, error: estError } = await supabase
-            .from('establishments')
-            .insert({
-              owner_user_id: userId,
-              name: companyName,
-              slug,
-              booking_enabled: true,
-              reschedule_min_hours: 2,
-              max_future_days: 30,
-              slot_interval_minutes: 15,
-              buffer_minutes: 0,
-              auto_confirm_bookings: true,
-              ask_email: false,
-              ask_notes: true,
-              require_policy_acceptance: true,
-            })
-            .select('id')
-            .single();
-
-          if (estError || !establishment) {
-            console.error('Error creating establishment:', estError);
-            return;
-          }
-
-          // Create owner member
-          await supabase.from('establishment_members').insert({
-            establishment_id: establishment.id,
-            user_id: userId,
-            role: 'owner',
-          });
-
-          // Create default business hours (Mon-Sat 9-18)
-          const defaultHours = [];
-          for (let weekday = 1; weekday <= 6; weekday++) {
-            defaultHours.push({
-              establishment_id: establishment.id,
-              weekday,
-              open_time: '09:00',
-              close_time: '18:00',
-              closed: false,
-            });
-          }
-          // Sunday closed
-          defaultHours.push({
-            establishment_id: establishment.id,
-            weekday: 0,
-            open_time: null,
-            close_time: null,
-            closed: true,
-          });
-
-          await supabase.from('business_hours').insert(defaultHours);
-        }, 0);
       }
     });
 
-    // Then get initial session (this also finalizes the OAuth callback exchange)
+    // Then get initial session
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -163,7 +79,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Sign up for ESTABLISHMENT owners only.
+   * This function should only be called from the establishment signup page
+   * after verifying the email is in allowed_establishment_signups.
+   */
   const signUp = async ({ email, password, fullName, companyName }: SignUpData) => {
+    // First, verify this email is allowed to create an establishment
+    const { data: checkData, error: checkError } = await supabase.rpc('check_establishment_signup_allowed', {
+      p_email: email,
+    });
+
+    if (checkError) {
+      console.error('Error checking establishment signup allowed:', checkError);
+      return { error: new Error('Erro ao verificar autorização. Tente novamente.') };
+    }
+
+    const checkResult = checkData as { allowed: boolean; reason?: string };
+    if (!checkResult.allowed) {
+      return { error: new Error(checkResult.reason || 'Email não autorizado para cadastro de estabelecimento.') };
+    }
+
+    // Create the auth user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -180,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error || new Error('Erro ao criar conta') };
     }
 
-    // Create establishment for the new user
+    // Now create the establishment for this user
     const userId = data.user.id;
     const baseSlug = generateSlug(companyName);
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
@@ -205,17 +142,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (estError || !establishment) {
+      console.error('Error creating establishment:', estError);
       return { error: estError || new Error('Erro ao criar estabelecimento') };
     }
 
     // Create owner member
-    await supabase
-      .from('establishment_members')
-      .insert({
-        establishment_id: establishment.id,
-        user_id: userId,
-        role: 'owner',
-      });
+    await supabase.from('establishment_members').insert({
+      establishment_id: establishment.id,
+      user_id: userId,
+      role: 'owner',
+    });
 
     // Create default business hours
     const defaultHours = [];
@@ -237,6 +173,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     await supabase.from('business_hours').insert(defaultHours);
+
+    // Mark the signup as used
+    await supabase.rpc('use_establishment_signup', {
+      p_email: email,
+      p_owner_user_id: userId,
+    });
 
     return { error: null };
   };
