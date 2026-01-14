@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_establishment_signups: {
+        Row: {
+          created_at: string
+          email: string
+          kiwify_order_id: string
+          paid_at: string
+          plan_id: string
+          used: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          kiwify_order_id: string
+          paid_at?: string
+          plan_id: string
+          used?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          kiwify_order_id?: string
+          paid_at?: string
+          plan_id?: string
+          used?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allowed_establishment_signups_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       appointment_completion_prompts: {
         Row: {
           action_taken: string | null
@@ -1094,6 +1129,10 @@ export type Database = {
         Args: { p_establishment_id: string }
         Returns: Json
       }
+      check_establishment_signup_allowed: {
+        Args: { p_email: string }
+        Returns: Json
+      }
       client_reschedule_appointment: {
         Args: {
           p_appointment_id: string
@@ -1183,6 +1222,10 @@ export type Database = {
       }
       set_professional_portal_password: {
         Args: { p_password: string; p_professional_id: string }
+        Returns: Json
+      }
+      use_establishment_signup: {
+        Args: { p_email: string; p_owner_user_id: string }
         Returns: Json
       }
       validate_professional_session: {
