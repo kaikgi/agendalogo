@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
   CreditCard,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEstablishment } from '@/hooks/useUserEstablishment';
@@ -44,6 +45,7 @@ const navItems = [
   { title: 'Serviços', url: '/dashboard/servicos', icon: Scissors },
   { title: 'Horários', url: '/dashboard/horarios', icon: Clock },
   { title: 'Bloqueios', url: '/dashboard/bloqueios', icon: CalendarOff },
+  { title: 'Avaliações', url: '/dashboard/avaliacoes', icon: Star },
   { title: 'Assinatura', url: '/dashboard/assinatura', icon: CreditCard },
   { title: 'Configurações', url: '/dashboard/configuracoes', icon: Settings },
 ];

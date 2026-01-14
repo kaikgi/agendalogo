@@ -28,6 +28,7 @@ import Profissionais from "./pages/dashboard/Profissionais";
 import Servicos from "./pages/dashboard/Servicos";
 import Horarios from "./pages/dashboard/Horarios";
 import Bloqueios from "./pages/dashboard/Bloqueios";
+import Avaliacoes from "./pages/dashboard/Avaliacoes";
 import Configuracoes from "./pages/dashboard/Configuracoes";
 import Assinatura from "./pages/dashboard/Assinatura";
 import ClientLayout from "./pages/client/ClientLayout";
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="servicos" element={<Servicos />} />
               <Route path="horarios" element={<Horarios />} />
               <Route path="bloqueios" element={<Bloqueios />} />
+              <Route path="avaliacoes" element={<Avaliacoes />} />
               <Route path="assinatura" element={<Assinatura />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
