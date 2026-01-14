@@ -65,3 +65,27 @@ export function sendRescheduleEmail(appointmentId: string) {
 export function sendReminderEmail(appointmentId: string) {
   return sendAppointmentEmail('reminder', appointmentId);
 }
+
+/**
+ * Send rating notification email to establishment owner
+ */
+export async function sendRatingNotificationEmail(ratingId: string): Promise<SendEmailResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-rating-email', {
+      body: { ratingId },
+    });
+
+    if (error) {
+      console.error('Error sending rating notification email:', error);
+      return { success: false, error: error.message };
+    }
+
+    return data as SendEmailResult;
+  } catch (err) {
+    console.error('Exception sending rating notification email:', err);
+    return { 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Unknown error' 
+    };
+  }
+}
