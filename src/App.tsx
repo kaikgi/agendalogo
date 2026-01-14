@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import Entrar from "./pages/Entrar";
 import PublicBooking from "./pages/PublicBooking";
 import ManageAppointment from "./pages/ManageAppointment";
 import NotFound from "./pages/NotFound";
@@ -83,8 +84,8 @@ const App = () => (
             <Route path="/privacidade" element={<Privacidade />} />
             
             {/* Auth pages */}
+            <Route path="/entrar" element={<Entrar />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/entrar" element={<Login />} />
             <Route path="/cadastro" element={<Signup />} />
             <Route path="/criar-conta" element={<Signup />} />
             <Route path="/esqueci-senha" element={<ForgotPassword />} />
