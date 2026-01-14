@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { 
@@ -9,9 +9,11 @@ import {
   CreditCard,
   LogOut,
   Menu,
-  X
+  X,
+  ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserEstablishment } from "@/hooks/useUserEstablishment";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -25,8 +27,10 @@ const adminNavItems = [
 
 export default function AdminLayout() {
   const { signOut } = useAuth();
+  const { data: establishment } = useUserEstablishment();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const hasEstablishment = !!establishment;
 
   const handleSignOut = async () => {
     await signOut();
@@ -86,7 +90,18 @@ export default function AdminLayout() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border space-y-2">
+            {hasEstablishment && (
+              <Link to="/dashboard">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                >
+                  <ArrowLeft size={18} />
+                  Voltar ao Dashboard
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               className="w-full justify-start gap-3"
