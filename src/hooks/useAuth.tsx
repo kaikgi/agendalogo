@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getOAuthRedirectUrl, getProductionUrl } from '@/lib/publicUrl';
+import { getOAuthRedirectUrl } from '@/lib/publicUrl';
 
 interface SignUpData {
   email: string;
@@ -37,110 +37,128 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialSessionChecked = useRef(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only synchronous state updates here
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // Avoid flipping loading=false before we've processed the initial session.
+      // This prevents protected routes from redirecting to /login while OAuth
+      // is still exchanging the code for a session.
+      if (initialSessionChecked.current) {
+        setLoading(false);
+      }
+
+      // Only create establishment on initial SIGNED_IN (not on token refresh)
+      if (event === 'SIGNED_IN' && session?.user) {
+        setLoading(false);
+
+        setTimeout(async () => {
+          const userId = session.user.id;
+
+          // Check if user already has ANY establishment (not just one)
+          const { data: existing, error: checkError } = await supabase
+            .from('establishments')
+            .select('id')
+            .eq('owner_user_id', userId)
+            .limit(1);
+
+          if (checkError) {
+            console.error('Error checking establishment:', checkError);
+            return;
+          }
+
+          // If user already has at least one establishment, skip creation
+          if (existing && existing.length > 0) {
+            return;
+          }
+
+          // Get user metadata for company name
+          const metadata = session.user.user_metadata;
+          const companyName =
+            metadata?.company_name ||
+            metadata?.full_name ||
+            session.user.email?.split('@')[0] ||
+            'Meu Estabelecimento';
+          const baseSlug = generateSlug(companyName);
+          const slug = `${baseSlug}-${Date.now().toString(36)}`;
+
+          // Create establishment
+          const { data: establishment, error: estError } = await supabase
+            .from('establishments')
+            .insert({
+              owner_user_id: userId,
+              name: companyName,
+              slug,
+              booking_enabled: true,
+              reschedule_min_hours: 2,
+              max_future_days: 30,
+              slot_interval_minutes: 15,
+              buffer_minutes: 0,
+              auto_confirm_bookings: true,
+              ask_email: false,
+              ask_notes: true,
+              require_policy_acceptance: true,
+            })
+            .select('id')
+            .single();
+
+          if (estError || !establishment) {
+            console.error('Error creating establishment:', estError);
+            return;
+          }
+
+          // Create owner member
+          await supabase.from('establishment_members').insert({
+            establishment_id: establishment.id,
+            user_id: userId,
+            role: 'owner',
+          });
+
+          // Create default business hours (Mon-Sat 9-18)
+          const defaultHours = [];
+          for (let weekday = 1; weekday <= 6; weekday++) {
+            defaultHours.push({
+              establishment_id: establishment.id,
+              weekday,
+              open_time: '09:00',
+              close_time: '18:00',
+              closed: false,
+            });
+          }
+          // Sunday closed
+          defaultHours.push({
+            establishment_id: establishment.id,
+            weekday: 0,
+            open_time: null,
+            close_time: null,
+            closed: true,
+          });
+
+          await supabase.from('business_hours').insert(defaultHours);
+        }, 0);
+      }
+    });
+
+    // Then get initial session (this also finalizes the OAuth callback exchange)
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        initialSessionChecked.current = true;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // Only create establishment on initial SIGNED_IN (not on token refresh)
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Use setTimeout to avoid blocking the auth state change
-          setTimeout(async () => {
-            const userId = session.user.id;
-            
-            // Check if user already has ANY establishment (not just one)
-            const { data: existing, error: checkError } = await supabase
-              .from('establishments')
-              .select('id')
-              .eq('owner_user_id', userId)
-              .limit(1);
-
-            if (checkError) {
-              console.error('Error checking establishment:', checkError);
-              return;
-            }
-
-            // If user already has at least one establishment, skip creation
-            if (existing && existing.length > 0) {
-              return;
-            }
-
-            // Get user metadata for company name
-            const metadata = session.user.user_metadata;
-            const companyName = metadata?.company_name || metadata?.full_name || session.user.email?.split('@')[0] || 'Meu Estabelecimento';
-            const baseSlug = generateSlug(companyName);
-            const slug = `${baseSlug}-${Date.now().toString(36)}`;
-
-            // Create establishment
-            const { data: establishment, error: estError } = await supabase
-              .from('establishments')
-              .insert({
-                owner_user_id: userId,
-                name: companyName,
-                slug,
-                booking_enabled: true,
-                reschedule_min_hours: 2,
-                max_future_days: 30,
-                slot_interval_minutes: 15,
-                buffer_minutes: 0,
-                auto_confirm_bookings: true,
-                ask_email: false,
-                ask_notes: true,
-                require_policy_acceptance: true,
-              })
-              .select('id')
-              .single();
-
-            if (estError || !establishment) {
-              console.error('Error creating establishment:', estError);
-              return;
-            }
-
-            // Create owner member
-            await supabase
-              .from('establishment_members')
-              .insert({
-                establishment_id: establishment.id,
-                user_id: userId,
-                role: 'owner',
-              });
-
-            // Create default business hours (Mon-Sat 9-18)
-            const defaultHours = [];
-            for (let weekday = 1; weekday <= 6; weekday++) {
-              defaultHours.push({
-                establishment_id: establishment.id,
-                weekday,
-                open_time: '09:00',
-                close_time: '18:00',
-                closed: false,
-              });
-            }
-            // Sunday closed
-            defaultHours.push({
-              establishment_id: establishment.id,
-              weekday: 0,
-              open_time: null,
-              close_time: null,
-              closed: true,
-            });
-
-            await supabase.from('business_hours').insert(defaultHours);
-          }, 0);
-        }
-      }
-    );
-
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+      })
+      .catch(() => {
+        initialSessionChecked.current = true;
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
