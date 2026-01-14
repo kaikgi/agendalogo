@@ -15,7 +15,9 @@ import { useUserEstablishment } from '@/hooks/useUserEstablishment';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useManageProfessionals } from '@/hooks/useManageProfessionals';
 import { useTimeBlocks, useRecurringTimeBlocks } from '@/hooks/useTimeBlocks';
+import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage';
 import { AppointmentDetailsDialog } from '@/components/dashboard/AppointmentDetailsDialog';
+import { UsageBadge } from '@/components/dashboard/UsageBadge';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -70,6 +72,7 @@ export default function Agenda() {
   
   const { data: establishment, isLoading: estLoading, error: estError, refetch: refetchEst } = useUserEstablishment();
   const { professionals } = useManageProfessionals(establishment?.id);
+  const { data: usage } = useSubscriptionUsage(establishment?.id);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
@@ -173,6 +176,15 @@ export default function Agenda() {
           <p className="text-muted-foreground">
             Visualize e gerencie seus agendamentos
           </p>
+          {usage && usage.max_appointments_month && (
+            <div className="mt-2 w-56">
+              <UsageBadge
+                current={usage.current_appointments_month}
+                max={usage.max_appointments_month}
+                label="Agendamentos este mês"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
