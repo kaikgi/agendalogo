@@ -6,7 +6,15 @@
  */
 
 // Production base URL - the canonical domain for public links
-const PRODUCTION_DOMAIN = 'agendali.online';
+const PRODUCTION_DOMAIN = 'www.agendali.online';
+
+/**
+ * Returns the production base URL (always agendali.online).
+ * For OAuth and critical redirects, ALWAYS use this to avoid supabase.co or lovable.app
+ */
+export function getProductionUrl(): string {
+  return `https://${PRODUCTION_DOMAIN}`;
+}
 
 /**
  * Returns the public base URL for the application.
@@ -16,19 +24,30 @@ const PRODUCTION_DOMAIN = 'agendali.online';
 export function getPublicBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // If we're on the production domain, use https
-    if (hostname === PRODUCTION_DOMAIN || hostname === `www.${PRODUCTION_DOMAIN}`) {
-      return `https://${PRODUCTION_DOMAIN}`;
+    // If we're on the production domain (with or without www), use production URL
+    if (hostname === 'agendali.online' || hostname === 'www.agendali.online') {
+      return getProductionUrl();
     }
     // For localhost or preview deployments, use current origin
     return window.location.origin;
   }
   // Fallback for SSR or non-browser environments
-  return `https://${PRODUCTION_DOMAIN}`;
+  return getProductionUrl();
 }
 
 // Legacy export for compatibility
-export const PUBLIC_BASE_URL = `https://${PRODUCTION_DOMAIN}`;
+export const PUBLIC_BASE_URL = getProductionUrl();
+
+/**
+ * Gets the OAuth redirect URL.
+ * ALWAYS uses production domain to avoid supabase.co or lovable.app in the OAuth flow.
+ * @param path - The path to redirect to after OAuth (e.g., '/dashboard')
+ * @returns The full redirect URL
+ */
+export function getOAuthRedirectUrl(path: string = '/dashboard'): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${getProductionUrl()}${normalizedPath}`;
+}
 
 /**
  * Builds a public URL by appending a path to the base URL.

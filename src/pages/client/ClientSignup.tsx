@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/Logo';
 import { supabase } from '@/integrations/supabase/client';
+import { getOAuthRedirectUrl } from '@/lib/publicUrl';
 
 const signupSchema = z.object({
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100),
@@ -53,7 +54,7 @@ export default function ClientSignup() {
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: `${window.location.origin}${from}`,
+          emailRedirectTo: getOAuthRedirectUrl(from),
           data: {
             full_name: data.full_name,
             phone: data.phone,
@@ -108,7 +109,8 @@ export default function ClientSignup() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    const { error } = await signInWithGoogle();
+    // Use the from path to redirect after Google OAuth
+    const { error } = await signInWithGoogle(from);
     setIsGoogleLoading(false);
     if (error) {
       toast({

@@ -49,7 +49,8 @@ export default function ClientLogin() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    const { error } = await signInWithGoogle();
+    // Use the from path to redirect after Google OAuth
+    const { error } = await signInWithGoogle(from);
     setIsGoogleLoading(false);
     if (error) {
       toast({ variant: 'destructive', title: 'Erro', description: error.message });
